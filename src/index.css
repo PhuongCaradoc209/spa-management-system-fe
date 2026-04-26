@@ -72,6 +72,7 @@
 :root {
   font-family: var(--font-body);
   color-scheme: light;
+  --fc-today-bg-color: #f8f7f3;
 }
 
 body {
@@ -92,3 +93,23 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+.fc .fc-day-today {
+  background-color: var(--fc-today-bg-color) !important;
+}
+
+.fc-event {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.fc-event:hover,
+.fc-daygrid-event:hover {
+  background-color: transparent !important;
+}
+
+.fc-timegrid-event .fc-event-main {
+  padding: 0 !important;
+}
+
