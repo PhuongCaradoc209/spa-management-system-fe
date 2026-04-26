@@ -5,6 +5,9 @@ import AdminPage from "@/page/admin";
 import HomePage from "@/page/home";
 import LoginPage from "@/page/auth/login";
 import { NAV_PATH } from "./paths";
+import CustomerLayout from "@/layout/CustomerLayout";
+import BookingPage from "@/page/customer/booking";
+import TherapistPage from "@/page/customer/therapist";
 
 const routes: RouteObject[] = [
   {
@@ -29,6 +32,19 @@ const routes: RouteObject[] = [
         path: "",
         element: <AdminPage />,
         index: true,
+      },
+    ],
+  },
+  {
+    element: <CustomerLayout />,
+    children: [
+      {
+        path: NAV_PATH.BOOKING,
+        element: <BookingPage />,
+      },
+      {
+        path: NAV_PATH.THERAPIST,
+        element: <TherapistPage />,
       },
     ],
   },
