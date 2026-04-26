@@ -69,7 +69,7 @@ const BookingPage = () => {
 
   const handleViewChange = (viewName: string) => {
     setActiveView(viewName);
-    let calendarApi = calendarRef.current?.getApi();
+    const calendarApi = calendarRef.current?.getApi();
     calendarApi?.changeView(viewName);
   };
 

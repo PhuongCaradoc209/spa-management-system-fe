@@ -1,4 +1,10 @@
-const EventCard = ({ eventInfo }: any) => {
+import type { EventContentArg } from "@fullcalendar/core";
+
+interface EventCardProps {
+  eventInfo: EventContentArg;
+}
+
+const EventCard = ({ eventInfo }: EventCardProps) => {
   const { title, extendedProps, start } = eventInfo.event;
   const { therapist, status } = extendedProps;
   const timeString =
