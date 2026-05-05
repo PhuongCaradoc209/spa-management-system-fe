@@ -1,7 +1,43 @@
-import React from "react";
+import React, { useState } from "react";
 import AppButton from "@/components/common/AppButton";
+import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+import { authService } from "@/services/auth.service";
 
 const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
+
+  // 1. Tạo state lưu trữ dữ liệu form
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  // 2. Cấu hình mutation để gọi API login
+  const loginMutation = useMutation({
+    mutationFn: authService.login,
+    onSuccess: (data: any) => {
+      localStorage.setItem("access_token", data.accessToken);
+      navigate("/");
+    },
+    onError: (error: any) => {
+      console.error(error);
+      alert(
+        error.response?.data?.message ||
+          "Đăng nhập thất bại. Vui lòng kiểm tra lại!",
+      );
+    },
+  });
+
+  // 3. Xử lý khi người dùng bấm nút Login (hoặc nhấn Enter)
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault(); // Ngăn trình duyệt reload trang
+
+    // Validate cơ bản
+    if (!email || !password) {
+      alert("Vui lòng nhập đầy đủ Email và Password!");
+      return;
+    }
+    loginMutation.mutate({ email, password });
+  };
   return (
     <div className="min-h-screen flex items-center justify-center bg-transparent pt-32 pb-16 px-6">
       <div className="max-w-md w-full animate-in zoom-in-95 duration-500">
@@ -18,7 +54,11 @@ const LoginPage: React.FC = () => {
 
           {/* Tabs */}
           <div className="flex p-1 bg-surface-container-low rounded-full mb-8">
-            <AppButton variant="secondary" className="flex-1 bg-white shadow-sm" size="sm">
+            <AppButton
+              variant="secondary"
+              className="flex-1 bg-white shadow-sm"
+              size="sm"
+            >
               Login
             </AppButton>
             <AppButton variant="ghost" className="flex-1" size="sm">
@@ -27,7 +67,7 @@ const LoginPage: React.FC = () => {
           </div>
 
           {/* Login Form */}
-          <form className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1.5">
               <label className="block text-[0.65rem] font-bold tracking-[0.15em] uppercase text-on-surface-variant ml-4">
                 Email Address
@@ -36,10 +76,11 @@ const LoginPage: React.FC = () => {
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline-variant text-lg">
                   mail
                 </span>
-                <input 
-                  className="w-full pl-12 pr-4 py-3.5 bg-surface-container/50 rounded-2xl border-none focus:ring-2 focus:ring-primary/20 outline-none text-sm transition-all placeholder:text-outline-variant text-primary" 
-                  placeholder="curator@serenespa.com" 
+                <input
+                  className="w-full pl-12 pr-4 py-3.5 bg-surface-container/50 rounded-2xl border-none focus:ring-2 focus:ring-primary/20 outline-none text-sm transition-all placeholder:text-outline-variant text-primary"
+                  placeholder="curator@serenespa.com"
                   type="email"
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
             </div>
@@ -49,8 +90,8 @@ const LoginPage: React.FC = () => {
                 <label className="block text-[0.65rem] font-bold tracking-[0.15em] uppercase text-on-surface-variant">
                   Password
                 </label>
-                <a 
-                  className="text-[0.65rem] font-bold tracking-[0.1em] uppercase text-tertiary hover:opacity-80 transition-opacity" 
+                <a
+                  className="text-[0.65rem] font-bold tracking-[0.1em] uppercase text-tertiary hover:opacity-80 transition-opacity"
                   href="#"
                 >
                   Forgot?
@@ -60,28 +101,32 @@ const LoginPage: React.FC = () => {
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline-variant text-lg">
                   lock
                 </span>
-                <input 
-                  className="w-full pl-12 pr-4 py-3.5 bg-surface-container/50 rounded-2xl border-none focus:ring-2 focus:ring-primary/20 outline-none text-sm transition-all text-primary" 
-                  placeholder="••••••••" 
+                <input
+                  className="w-full pl-12 pr-4 py-3.5 bg-surface-container/50 rounded-2xl border-none focus:ring-2 focus:ring-primary/20 outline-none text-sm transition-all text-primary"
+                  placeholder="••••••••"
                   type="password"
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
             </div>
 
             <div className="flex items-center px-4">
-              <input 
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/20" 
-                id="remember-me" 
-                name="remember-me" 
+              <input
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/20"
+                id="remember-me"
+                name="remember-me"
                 type="checkbox"
               />
-              <label className="ml-2 block text-xs text-on-surface-variant" htmlFor="remember-me">
+              <label
+                className="ml-2 block text-xs text-on-surface-variant"
+                htmlFor="remember-me"
+              >
                 Remember me
               </label>
             </div>
 
             <div className="pt-2">
-              <AppButton 
+              <AppButton
                 variant="primary"
                 fullWidth
                 size="lg"
@@ -95,8 +140,11 @@ const LoginPage: React.FC = () => {
 
           <div className="mt-8 text-center">
             <p className="text-xs text-on-surface-variant">
-              Don&apos;t have an account? 
-              <a className="font-bold text-tertiary hover:underline underline-offset-4 ml-1" href="#">
+              Don&apos;t have an account?
+              <a
+                className="font-bold text-tertiary hover:underline underline-offset-4 ml-1"
+                href="#"
+              >
                 Register
               </a>
             </p>
