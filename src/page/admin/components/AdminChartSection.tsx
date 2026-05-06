@@ -1,6 +1,21 @@
 import React from "react";
+import { useAdminChartSection } from "../hooks/useAdminChartSection";
+import { useAdminStats } from "../hooks/useAdminStats";
+import { formatCurrency } from "../hooks/useAdminAppointments";
 
 const AdminChartSection: React.FC = () => {
+  const { months, weeklyGoal } = useAdminChartSection();
+  const { invoiceStats, isLoading: statsLoading } = useAdminStats();
+
+  const overlayClasses = [
+    "bg-surface-dim/30",
+    "bg-tertiary-container/30",
+    "bg-tertiary-container/50",
+    "bg-tertiary-container/70",
+    "bg-tertiary",
+    "bg-tertiary/80",
+  ];
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       {/* Chart Card */}
@@ -22,44 +37,43 @@ const AdminChartSection: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Visual Chart Representation (CSS Bars) */}
         <div className="flex items-end justify-between h-48 gap-8 px-4">
-          <div className="flex-1 flex flex-col items-center gap-3">
-            <div className="w-full bg-surface-container-low rounded-t-2xl relative" style={{ height: "45%" }}>
-              <div className="absolute inset-0 bg-surface-dim/30 rounded-t-2xl"></div>
-            </div>
-            <span className="text-[10px] font-label text-on-surface-variant/40">JAN</span>
+                  {months.map((month, index) => (
+                    <div key={month.label} className="flex-1 flex flex-col items-center gap-3">
+                      <div
+                        className="w-full bg-surface-container-low rounded-t-2xl relative"
+                        style={{ height: `${month.heightPercent}%` }}
+                      >
+                        <div
+                          className={`absolute inset-0 ${overlayClasses[index] ?? "bg-surface-dim/30"} rounded-t-2xl`}
+                        ></div>
+                      </div>
+                      <span className="text-[10px] font-label text-on-surface-variant/40">{month.label}</span>
+                    </div>
+                  ))}
+        </div>
+
+        {/* Revenue Stats Row */}
+        <div className="mt-10 pt-6 border-t border-outline-variant/20 grid grid-cols-3 gap-4">
+          <div>
+            <p className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant/60 mb-1">Total Revenue</p>
+            <p className="text-lg font-headline font-bold text-primary">
+              {statsLoading ? "-" : formatCurrency(invoiceStats.totalRevenue, invoiceStats.currency)}
+            </p>
           </div>
-          <div className="flex-1 flex flex-col items-center gap-3">
-            <div className="w-full bg-surface-container-low rounded-t-2xl relative" style={{ height: "60%" }}>
-              <div className="absolute inset-0 bg-tertiary-container/30 rounded-t-2xl"></div>
-            </div>
-            <span className="text-[10px] font-label text-on-surface-variant/40">FEB</span>
+          <div>
+            <p className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant/60 mb-1">Collected</p>
+            <p className="text-lg font-headline font-bold text-emerald-600">
+              {statsLoading ? "-" : formatCurrency(invoiceStats.paidRevenue, invoiceStats.currency)}
+            </p>
           </div>
-          <div className="flex-1 flex flex-col items-center gap-3">
-            <div className="w-full bg-surface-container-low rounded-t-2xl relative" style={{ height: "75%" }}>
-              <div className="absolute inset-0 bg-tertiary-container/50 rounded-t-2xl"></div>
-            </div>
-            <span className="text-[10px] font-label text-on-surface-variant/40">MAR</span>
-          </div>
-          <div className="flex-1 flex flex-col items-center gap-3">
-            <div className="w-full bg-surface-container-low rounded-t-2xl relative" style={{ height: "55%" }}>
-              <div className="absolute inset-0 bg-tertiary-container/70 rounded-t-2xl"></div>
-            </div>
-            <span className="text-[10px] font-label text-on-surface-variant/40">APR</span>
-          </div>
-          <div className="flex-1 flex flex-col items-center gap-3">
-            <div className="w-full bg-surface-container-low rounded-t-2xl relative" style={{ height: "90%" }}>
-              <div className="absolute inset-0 bg-tertiary rounded-t-2xl"></div>
-            </div>
-            <span className="text-[10px] font-label text-on-surface-variant/40">MAY</span>
-          </div>
-          <div className="flex-1 flex flex-col items-center gap-3">
-            <div className="w-full bg-surface-container-low rounded-t-2xl relative" style={{ height: "70%" }}>
-              <div className="absolute inset-0 bg-tertiary/80 rounded-t-2xl"></div>
-            </div>
-            <span className="text-[10px] font-label text-on-surface-variant/40">JUN</span>
+          <div>
+            <p className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant/60 mb-1">Pending</p>
+            <p className="text-lg font-headline font-bold text-amber-600">
+              {statsLoading ? "-" : formatCurrency(invoiceStats.pendingRevenue, invoiceStats.currency)}
+            </p>
           </div>
         </div>
       </div>
@@ -74,9 +88,12 @@ const AdminChartSection: React.FC = () => {
         <div className="pt-6 border-t border-tertiary-fixed-dim/40">
           <p className="text-[10px] font-label uppercase tracking-widest text-tertiary">Weekly Goal Progress</p>
           <div className="mt-4 w-full h-2 bg-white rounded-full overflow-hidden">
-            <div className="h-full bg-tertiary rounded-full" style={{ width: "68%" }}></div>
+            <div
+              className="h-full bg-tertiary rounded-full"
+              style={{ width: `${weeklyGoal.percent}%` }}
+            ></div>
           </div>
-          <p className="mt-2 text-lg font-headline font-bold text-tertiary">68%</p>
+          <p className="mt-2 text-lg font-headline font-bold text-tertiary">{weeklyGoal.percent}%</p>
         </div>
       </div>
     </div>

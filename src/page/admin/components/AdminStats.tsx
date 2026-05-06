@@ -1,6 +1,15 @@
 import React from "react";
+import { useAdminStats } from "../hooks/useAdminStats";
 
 const AdminStats: React.FC = () => {
+  const { stats, isLoading } = useAdminStats();
+
+  const formatNumber = (num: number) => {
+    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+    if (num >= 1_000) return `${(num / 1_000).toFixed(0)}k`;
+    return num.toString();
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
       {/* Metric Card 1 */}
@@ -10,8 +19,10 @@ const AdminStats: React.FC = () => {
         </div>
         <p className="text-[10px] font-label tracking-widest text-on-surface-variant/60 uppercase mb-1">Total Points Issued</p>
         <div className="flex items-baseline gap-2">
-          <h3 className="text-2xl font-headline font-bold text-on-surface text-left">1.2M</h3>
-          <span className="text-xs text-emerald-600">+12%</span>
+          <h3 className="text-2xl font-headline font-bold text-on-surface text-left">
+            {isLoading ? "-" : formatNumber(stats.totalPointsIssued)}
+          </h3>
+          <span className="text-xs text-emerald-600">+{stats.percentChange}%</span>
         </div>
       </div>
 
@@ -22,7 +33,9 @@ const AdminStats: React.FC = () => {
         </div>
         <p className="text-[10px] font-label tracking-widest text-on-surface-variant/60 uppercase mb-1">Active Loyalty Members</p>
         <div className="flex items-baseline gap-2">
-          <h3 className="text-2xl font-headline font-bold text-on-surface text-left">842</h3>
+          <h3 className="text-2xl font-headline font-bold text-on-surface text-left">
+            {isLoading ? "-" : stats.activeMembers.toLocaleString()}
+          </h3>
           <span className="text-xs text-emerald-600">+4%</span>
         </div>
       </div>
@@ -34,7 +47,9 @@ const AdminStats: React.FC = () => {
         </div>
         <p className="text-[10px] font-label tracking-widest text-on-surface-variant/60 uppercase mb-1">Points Redeemed</p>
         <div className="flex items-baseline gap-2">
-          <h3 className="text-2xl font-headline font-bold text-on-surface text-left">420k</h3>
+          <h3 className="text-2xl font-headline font-bold text-on-surface text-left">
+            {isLoading ? "-" : formatNumber(stats.pointsRedeemed)}
+          </h3>
           <span className="text-xs text-on-surface-variant/60 uppercase tracking-tighter">stable</span>
         </div>
       </div>
@@ -43,7 +58,9 @@ const AdminStats: React.FC = () => {
       <div className="bg-primary p-6 rounded-3xl shadow-lg relative overflow-hidden flex flex-col justify-between text-left">
         <div className="relative z-10">
           <p className="text-[10px] font-label tracking-widest text-primary-fixed/60 uppercase mb-1">New Enrollments</p>
-          <h3 className="text-3xl font-headline font-bold text-white">48</h3>
+          <h3 className="text-3xl font-headline font-bold text-white">
+            {isLoading ? "-" : stats.newEnrollmentsThisWeek}
+          </h3>
           <p className="text-[10px] text-primary-fixed mt-2 font-medium">This Week</p>
         </div>
         <div className="absolute -right-2 -bottom-4 w-28 h-28 opacity-40 mix-blend-screen pointer-events-none">

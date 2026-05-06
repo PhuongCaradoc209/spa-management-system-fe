@@ -1,22 +1,43 @@
-import apiClient from '../config/appClient';
+import apiClient from "../config/appClient";
 
-interface LoginData {
+export type LoginRequest = {
   email: string;
   password: string;
-}
-interface RegisterData {
+};
+
+export type RegisterRequest = {
   email: string;
   password: string;
-  fullName: string;
-}
+  firstName: string;
+  lastName: string;
+  phone?: string;
+};
+
+export type RefreshTokenRequest = {
+  refreshToken?: string;
+};
+
+export type AuthResponse = Record<string, unknown>;
+export type AuthEmptyResponse = Record<string, unknown> | null;
 
 export const authService = {
-  login: async (loginData: LoginData) => {
-    const response = await apiClient.post('/auth/login', loginData);
-    return response;
+  login: async (payload: LoginRequest): Promise<AuthResponse> => {
+    return apiClient.post("/auth/login", payload);
   },
-  register: async (registerData: RegisterData) => {
-    const response = await apiClient.post('/auth/register', registerData);
-    return response;
+
+  register: async (payload: RegisterRequest): Promise<AuthResponse> => {
+    return apiClient.post("/auth/register", payload);
+  },
+
+  refresh: async (payload?: RefreshTokenRequest): Promise<AuthResponse> => {
+    return apiClient.post("/auth/refresh", payload);
+  },
+
+  logout: async (payload?: RefreshTokenRequest): Promise<AuthEmptyResponse> => {
+    return apiClient.post("/auth/logout", payload);
+  },
+
+  logoutAll: async (): Promise<AuthEmptyResponse> => {
+    return apiClient.post("/auth/logout-all");
   },
 };

@@ -1,28 +1,204 @@
 import React from "react";
 import AppButton from "@/components/common/AppButton";
+import { AppointmentStatus } from "@/constant/enum/appointment.enum";
+import AdminHistoryRow from "./AdminHistoryRow";
+import {
+  formatCurrency,
+  formatDateParts,
+  formatPersonName,
+  formatServiceName,
+  getStatusMeta,
+  useAdminAppointments,
+} from "../hooks/useAdminAppointments";
 
 const AdminHistoryTable: React.FC = () => {
+  const {
+    appointments,
+    total,
+    page,
+    setPage,
+    search,
+    setSearch,
+    statusFilter,
+    setStatusFilter,
+    dateFilter,
+    setDateFilter,
+    hasNextPage,
+    isLoading,
+    isError,
+    isMutating,
+    refresh,
+    selectAppointment,
+    clearSelection,
+    selectedAppointment,
+    detailLoading,
+    detailError,
+    markCompleted,
+    cancelAppointment,
+    generateInvoice,
+    setTodayFilter,
+  } = useAdminAppointments();
+
+  const statusOptions = [
+    { value: "", label: "All Status" },
+    ...Object.values(AppointmentStatus).map((status) => ({
+      value: status,
+      label: status.replace(/_/g, " "),
+    })),
+  ];
+
+  const selectedDetail = selectedAppointment;
+  const detailStatusMeta = getStatusMeta(String(selectedDetail?.status ?? ""));
+  const detailDate = formatDateParts(selectedDetail?.scheduledAt);
+
   return (
     <div className="space-y-6">
       {/* Search & Filters */}
       <div className="flex flex-col md:flex-row gap-4 justify-between items-center px-4">
         <div className="relative w-full md:w-96">
           <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
-          <input 
-            className="w-full pl-12 pr-4 py-3 bg-surface-container-lowest border-none rounded-2xl text-sm focus:ring-2 focus:ring-primary-fixed focus:bg-white transition-all outline-none" 
-            placeholder="Search customer or service..." 
+          <input
+            className="w-full pl-12 pr-4 py-3 bg-surface-container-lowest border-none rounded-2xl text-sm focus:ring-2 focus:ring-primary-fixed focus:bg-white transition-all outline-none"
+            placeholder="Search customer or service..."
             type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
           />
         </div>
         <div className="flex gap-4 items-center overflow-x-auto no-scrollbar w-full md:w-auto">
           <AppButton variant="outline" size="sm" iconLeft="tune" className="bg-white">
             Filter
           </AppButton>
-          <AppButton variant="outline" size="sm" iconLeft="calendar_today" className="bg-white">
+          <div className="relative">
+            <input
+              className="rounded-full border border-outline-variant/30 bg-white px-4 py-2 text-[10px] uppercase tracking-widest text-on-surface-variant"
+              type="date"
+              value={dateFilter}
+              onChange={(event) => setDateFilter(event.target.value)}
+            />
+          </div>
+          <AppButton
+            variant="outline"
+            size="sm"
+            iconLeft="calendar_today"
+            className="bg-white"
+            onClick={setTodayFilter}
+          >
             Today
+          </AppButton>
+          <div className="relative">
+            <select
+              className="rounded-full border border-outline-variant/30 bg-white px-4 py-2 text-[10px] uppercase tracking-widest text-on-surface-variant"
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(
+                  event.target.value as AppointmentStatus | "",
+                )
+              }
+            >
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <AppButton
+            variant="outline"
+            size="sm"
+            iconLeft="refresh"
+            className="bg-white"
+            onClick={refresh}
+          >
+            Refresh
           </AppButton>
         </div>
       </div>
+
+      {selectedDetail && (
+        <div className="rounded-3xl bg-white shadow-sm ring-1 ring-outline-variant/30 p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
+                Appointment Detail
+              </p>
+              <h3 className="text-lg font-headline font-semibold text-primary">
+                {formatPersonName(selectedDetail.customer)}
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${detailStatusMeta.className}`}
+              >
+                {detailStatusMeta.label}
+              </span>
+              <AppButton
+                variant="outline"
+                size="sm"
+                iconLeft="close"
+                className="bg-white"
+                onClick={clearSelection}
+              >
+                Close
+              </AppButton>
+            </div>
+          </div>
+
+          {(detailLoading || detailError) && (
+            <div className="mt-4 text-xs text-on-surface-variant/60">
+              {detailLoading
+                ? "Loading appointment detail..."
+                : "Unable to load appointment detail."}
+            </div>
+          )}
+
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
+                Appointment ID
+              </p>
+              <p className="text-on-surface">
+                {selectedDetail.id ?? selectedDetail.appointmentId ?? "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
+                Staff
+              </p>
+              <p className="text-on-surface">
+                {formatPersonName(selectedDetail.staff)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
+                Services
+              </p>
+              <p className="text-on-surface">
+                {formatServiceName(selectedDetail.services)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
+                Scheduled
+              </p>
+              <p className="text-on-surface">
+                {detailDate.date} · {detailDate.time}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
+                Total
+              </p>
+              <p className="text-on-surface">
+                {formatCurrency(
+                  selectedDetail.totalPrice ?? selectedDetail.price,
+                  selectedDetail.currency,
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modern Data Table */}
       <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-outline-variant/30">
@@ -39,113 +215,73 @@ const AdminHistoryTable: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-outline-variant/10">
-            {/* Row 1 */}
-            <tr className="hover:bg-surface-container-lowest transition-colors group">
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex -space-x-2">
-                    <img 
-                      alt="Linh" 
-                      className="w-8 h-8 rounded-full border-2 border-white object-cover" 
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfH__yAt2WdbNvMQAnP_pexZErHv7XmP0gRM-ed0IM_vTQsaA0jc_8kV4ITSbcsx1Q84i9HzKZxwgVqaI_LW9q_4SECqMxtQL1_Z6M_HqhRnes6TpL3PFrCdFNPm5Yoh1sK59BFFJYt94sbmLOSG8pD57LUY1_LHYFfLKyGI3Dd59kJry5SWwcEwee03UAlOL_2n_sKTViJ52AC6NTbP4U6LnG3BSU4o4JHpnT3S9SX1Fhtt7ZFtQ2EAPsIbVlokmeV24OHbFNIE4"
-                    />
-                  </div>
-                  <span className="font-medium text-on-surface">Linh Nguyễn</span>
-                </div>
-              </td>
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-primary"></span>
-                  <span className="text-sm text-on-surface-variant">Deep Tissue Massage</span>
-                </div>
-              </td>
-              <td className="px-6 py-4 text-sm text-on-surface-variant">Thao Vo</td>
-              <td className="px-6 py-4">
-                <div className="text-sm text-on-surface">Nov 24, 2024</div>
-                <div className="text-[10px] text-on-surface-variant/40 uppercase tracking-wider">14:00 PM</div>
-              </td>
-              <td className="px-6 py-4 font-medium text-primary">$85.00</td>
-              <td className="px-6 py-4">
-                <span className="px-3 py-1 rounded-full bg-primary-container/20 text-primary text-[10px] font-bold uppercase tracking-wider">Completed</span>
-              </td>
-              <td className="px-6 py-4 text-right">
-                <AppButton variant="ghost" size="sm" iconLeft="more_horiz" className="p-2 min-w-0" />
-              </td>
-            </tr>
-            {/* Row 2 */}
-            <tr className="hover:bg-surface-container-lowest transition-colors group">
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex -space-x-2">
-                    <img 
-                      alt="Minh" 
-                      className="w-8 h-8 rounded-full border-2 border-white object-cover" 
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuCWPH3GexWFb3xqY5YV1NY0tA1GCF1wlCbGYlB0dQ9_znYtlvJD1M4f1OmTcc3hewstIggJvKgm6hjzQs2dc1I9OPpSH2rIB-EDIcAZxhWnHW_qP_qqbveWwbQHJvPF0qM7KyW2Ro6Dg_orQ6rUL__7iWFoZil1ZmoIFEnt2mXI5iYlvX1navn0CumyTPk4rj3w81Js5HA2P7Bh1WOPkbuHlgwuJlvugK6KYmEX8VVfIwfP0_vtQ6WJiiR5jphQa1m5WZiFhHLovts"
-                    />
-                  </div>
-                  <span className="font-medium text-on-surface">Minh Trần</span>
-                </div>
-              </td>
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-secondary"></span>
-                  <span className="text-sm text-on-surface-variant">HydraFacial</span>
-                </div>
-              </td>
-              <td className="px-6 py-4 text-sm text-on-surface-variant">Alex Dang</td>
-              <td className="px-6 py-4">
-                <div className="text-sm text-on-surface">Nov 24, 2024</div>
-                <div className="text-[10px] text-on-surface-variant/40 uppercase tracking-wider">15:30 PM</div>
-              </td>
-              <td className="px-6 py-4 font-medium text-primary">$120.00</td>
-              <td className="px-6 py-4">
-                <span className="px-3 py-1 rounded-full bg-secondary-container/20 text-secondary text-[10px] font-bold uppercase tracking-wider">In Progress</span>
-              </td>
-              <td className="px-6 py-4 text-right">
-                <AppButton variant="ghost" size="sm" iconLeft="more_horiz" className="p-2 min-w-0" />
-              </td>
-            </tr>
-            {/* Row 3 */}
-            <tr className="hover:bg-surface-container-lowest transition-colors group">
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex -space-x-2">
-                    <img 
-                      alt="Hanh" 
-                      className="w-8 h-8 rounded-full border-2 border-white object-cover" 
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDq_A9OZYcxW_B8p2ZLUXyxC6I5qYXw2WQCybbpgXK3HkoQe5RsvAfhasm6h9pKJIvrWgjWwwke5RpQ2_y8JeGmBgm9gSwKmvYOmNId6PSoCNs0V8saAHXKPoW1ad2tFjvoTd8r6zmr1zCE8aQ9z4fiYpTnrvFbLjqVS1fZveiVlDUdGsSVN-Eurc0HQS9E7WwS1SnWgHO7EBBAlKN_yL0ug2j3FHkGxbrRMByFgLXySd2YOoyq0fYwu8SfNN2NImpqaj3_i1BGXEA"
-                    />
-                  </div>
-                  <span className="font-medium text-on-surface">Hạnh Phan</span>
-                </div>
-              </td>
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-tertiary"></span>
-                  <span className="text-sm text-on-surface-variant">Aromatherapy Ritual</span>
-                </div>
-              </td>
-              <td className="px-6 py-4 text-sm text-on-surface-variant">Thao Vo</td>
-              <td className="px-6 py-4">
-                <div className="text-sm text-on-surface">Nov 24, 2024</div>
-                <div className="text-[10px] text-on-surface-variant/40 uppercase tracking-wider">17:00 PM</div>
-              </td>
-              <td className="px-6 py-4 font-medium text-primary">$95.00</td>
-              <td className="px-6 py-4">
-                <span className="px-3 py-1 rounded-full bg-surface-container text-on-surface-variant/60 text-[10px] font-bold uppercase tracking-wider">Scheduled</span>
-              </td>
-              <td className="px-6 py-4 text-right">
-                <AppButton variant="ghost" size="sm" iconLeft="more_horiz" className="p-2 min-w-0" />
-              </td>
-            </tr>
+            {isLoading && (
+              <tr>
+                <td
+                  className="px-6 py-10 text-center text-sm text-on-surface-variant/60"
+                  colSpan={7}
+                >
+                  Loading appointments...
+                </td>
+              </tr>
+            )}
+            {isError && !isLoading && (
+              <tr>
+                <td
+                  className="px-6 py-10 text-center text-sm text-on-surface-variant/60"
+                  colSpan={7}
+                >
+                  Failed to load appointments. Please refresh.
+                </td>
+              </tr>
+            )}
+            {!isLoading && !isError && appointments.length === 0 && (
+              <tr>
+                <td
+                  className="px-6 py-10 text-center text-sm text-on-surface-variant/60"
+                  colSpan={7}
+                >
+                  No appointments found.
+                </td>
+              </tr>
+            )}
+            {!isLoading &&
+              !isError &&
+              appointments.map((appointment) => (
+                <AdminHistoryRow
+                  key={appointment.id ?? appointment.appointmentId}
+                  appointment={appointment}
+                  disableActions={isMutating}
+                  onViewDetail={selectAppointment}
+                  onComplete={markCompleted}
+                  onCancel={cancelAppointment}
+                  onInvoice={generateInvoice}
+                />
+              ))}
           </tbody>
         </table>
       </div>
       <div className="flex justify-between items-center px-4 py-2">
-        <p className="text-xs text-on-surface-variant/40 uppercase tracking-widest font-label">Showing 3 of 42 records</p>
+        <p className="text-xs text-on-surface-variant/40 uppercase tracking-widest font-label">
+          Showing {appointments.length} of {total} records
+        </p>
         <div className="flex gap-2">
-          <AppButton variant="outline" size="sm" iconLeft="chevron_left" className="p-2 min-w-0" />
-          <AppButton variant="outline" size="sm" iconLeft="chevron_right" className="p-2 min-w-0" />
+          <AppButton
+            variant="outline"
+            size="sm"
+            iconLeft="chevron_left"
+            className="p-2 min-w-0"
+            disabled={page <= 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+          />
+          <AppButton
+            variant="outline"
+            size="sm"
+            iconLeft="chevron_right"
+            className="p-2 min-w-0"
+            disabled={!hasNextPage}
+            onClick={() => setPage((current) => current + 1)}
+          />
         </div>
       </div>
     </div>
