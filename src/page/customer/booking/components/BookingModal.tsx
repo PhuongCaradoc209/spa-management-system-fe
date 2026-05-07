@@ -1,21 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X } from "@phosphor-icons/react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import axios from "axios";
 
 interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-interface ServiceType {
-  id: string;
-  name: string;
-}
-
-interface StaffType {
-  id: string;
-  name: string;
 }
 
 const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {

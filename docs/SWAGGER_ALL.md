@@ -167,7 +167,15 @@ tags:
             properties:
               status:
                 type: string
-                enum: [PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW]
+                enum:
+                  [
+                    PENDING,
+                    CONFIRMED,
+                    IN_PROGRESS,
+                    COMPLETED,
+                    CANCELLED,
+                    NO_SHOW,
+                  ]
                 description: Next status according to allowed transitions
     responses:
       200:
@@ -904,6 +912,35 @@ tags:
         description: Service is referenced by appointments
       404:
         description: Service not found
+```
+
+## src/routes/staff.routes.js
+
+```yaml
+tags:
+  - name: Staff
+    description: Staff directory
+```
+
+```yaml
+/staff:
+  get:
+    tags: [Staff]
+    summary: List staff
+    description: |
+      Public staff list. Admin can send Bearer token and query includeUnavailable=true to include unavailable staff.
+    parameters:
+      - in: query
+        name: includeUnavailable
+        schema:
+          type: string
+          enum: [true, false]
+        description: Admin only — when true, includes unavailable staff
+    responses:
+      200:
+        description: OK
+      400:
+        description: Invalid query parameters
 ```
 
 ## src/routes/staff-schedules.routes.js
