@@ -1,4 +1,5 @@
 import apiClient from "../config/appClient";
+import { type UserRole } from "../constant/enum/user.enum";
 
 export type LoginRequest = {
   email: string;
@@ -17,11 +18,21 @@ export type RefreshTokenRequest = {
   refreshToken?: string;
 };
 
+export type LoginResponse = {
+  accessToken: string;
+  user: {
+    id: string;
+    email: string;
+    role: UserRole;
+    isActive: boolean;
+  };
+};
+
 export type AuthResponse = Record<string, unknown>;
 export type AuthEmptyResponse = Record<string, unknown> | null;
 
 export const authService = {
-  login: async (payload: LoginRequest): Promise<AuthResponse> => {
+  login: async (payload: LoginRequest): Promise<LoginResponse> => {
     return apiClient.post("/auth/login", payload);
   },
 
@@ -29,7 +40,7 @@ export const authService = {
     return apiClient.post("/auth/register", payload);
   },
 
-  refresh: async (payload?: RefreshTokenRequest): Promise<AuthResponse> => {
+  refresh: async (payload?: RefreshTokenRequest): Promise<LoginResponse> => {
     return apiClient.post("/auth/refresh", payload);
   },
 

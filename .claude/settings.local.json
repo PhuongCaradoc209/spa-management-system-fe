@@ -3,6 +3,9 @@
     "allow": [
       "Bash(npx eslint *)",
       "Bash(npm run *)"
+    ],
+    "additionalDirectories": [
+      "d:\\Desktop\\UNIVER\\CURRENTLY\\ISM\\Project-Frontend\\src\\page\\admin\\operation-mng\\hooks"
     ]
   }
 }

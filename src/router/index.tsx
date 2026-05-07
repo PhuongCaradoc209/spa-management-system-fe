@@ -7,6 +7,7 @@ import LoginPage from "@/page/auth/login";
 import { NAV_PATH } from "./paths";
 import BookingPage from "@/page/customer/booking";
 import TherapistPage from "@/page/customer/therapist";
+import AdminOperationManagementPage from "@/page/admin/operation-mng";
 
 const routes: RouteObject[] = [
   {
@@ -39,6 +40,10 @@ const routes: RouteObject[] = [
         path: "",
         element: <AdminPage />,
         index: true,
+      },
+      {
+        path: "operations",
+        element: <AdminOperationManagementPage />,
       },
     ],
   },
