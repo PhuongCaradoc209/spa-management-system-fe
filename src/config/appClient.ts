@@ -26,6 +26,8 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       // Logic Logout hoặc Refresh Token ở đây
       console.error("Unauthorized! Redirecting to login...");
+      localStorage.removeItem("access_token");
+      window.location.href = "/login";
     }
     return Promise.reject(error);
   },

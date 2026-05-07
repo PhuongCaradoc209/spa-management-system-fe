@@ -1,24 +1,45 @@
-import { StarIcon } from "@phosphor-icons/react";
-
-export type TherapistStatus = "AVAILABLE" | "IN SESSION" | "OFF DUTY";
+export type TherapistStatus = "AVAILABLE" | "OFF DUTY";
 
 export interface Therapist {
   id: string;
   firstName: string;
   lastName: string;
   phone: string;
-  specializations: string[];
-  rating: number;
-  reviewCount: number;
-  appointmentCount: number;
-  status: TherapistStatus;
-  avatarColor: string;
+  services?: { id: string; name: string }[];
+  appointmentCount?: number; // Đã được inject từ Promise.all ở Page
+  isAvailable: boolean;
 }
 
 const STATUS_STYLES: Record<TherapistStatus, string> = {
   AVAILABLE: "bg-[#d4edda] text-[#276c3b]",
-  "IN SESSION": "bg-[#cce4f0] text-[#1a5c82]",
   "OFF DUTY": "bg-[#e9e9e9] text-[#555]",
+};
+
+const AVATAR_COLORS = [
+  "#6BAE95",
+  "#6E9CB8",
+  "#E8A87C",
+  "#8E84C0",
+  "#D48A8A",
+  "#5A9A8A",
+  "#F4A261",
+  "#2A9D8F",
+  "#E76F51",
+  "#264653",
+  "#e07a5f",
+  "#81b29a",
+  "#f2cc8f",
+  "#3d5a80",
+  "#98c1d9",
+];
+
+const getAvatarColor = (identifier: string) => {
+  let hash = 0;
+  for (let i = identifier.length - 1; i >= 0; i--) {
+    hash = identifier.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[index];
 };
 
 const TherapistCard = ({
@@ -28,7 +49,15 @@ const TherapistCard = ({
   therapist: Therapist;
   onClick?: () => void;
 }) => {
-  const initials = `${therapist.firstName[0]}${therapist.lastName[0]}`;
+  const firstInitial = therapist.firstName?.charAt(0)?.toUpperCase() || "";
+  const lastInitial = therapist.lastName?.charAt(0)?.toUpperCase() || "";
+  const initials = `${firstInitial}${lastInitial}` || "?";
+
+  const bgColor = getAvatarColor(therapist.id || therapist.firstName);
+
+  const currentStatus: TherapistStatus = therapist.isAvailable
+    ? "AVAILABLE"
+    : "OFF DUTY";
 
   return (
     <div
@@ -40,7 +69,7 @@ const TherapistCard = ({
         <div className="flex items-center gap-3">
           <div
             className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
-            style={{ backgroundColor: therapist.avatarColor }}
+            style={{ backgroundColor: bgColor }}
           >
             {initials}
           </div>
@@ -49,39 +78,39 @@ const TherapistCard = ({
               {therapist.firstName} {therapist.lastName}
             </p>
             <p className="text-xs text-gray-500 font-medium mt-0.5">
-              {therapist.phone}
+              {therapist.phone || "No phone number"}
             </p>
           </div>
         </div>
+
         <span
-          className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide ${STATUS_STYLES[therapist.status]}`}
+          className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide ${STATUS_STYLES[currentStatus]}`}
         >
-          {therapist.status}
+          {currentStatus}
         </span>
       </div>
 
-      {/* Specializations */}
       <div className="flex flex-wrap gap-1.5">
-        {therapist.specializations.map((spec) => (
+        {therapist.services?.map((service) => (
           <span
-            key={spec}
+            key={service.id}
             className="text-[11px] bg-[#f0f4f2] text-[#3e6658] px-2.5 py-1 rounded-full font-medium"
           >
-            {spec}
+            {service.name}
           </span>
         ))}
+        {(!therapist.services || therapist.services.length === 0) && (
+          <span className="text-[11px] text-gray-400 italic py-1">
+            General Therapist
+          </span>
+        )}
       </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between text-xs text-gray-500 pt-1 border-t border-gray-50">
-        <div className="flex items-center gap-1 font-semibold text-gray-700">
-          <StarIcon size={14} weight="fill" className="text-amber-400" />
-          <span>{therapist.rating.toFixed(1)}</span>
-          <span className="text-gray-400 font-normal">
-            ({therapist.reviewCount})
-          </span>
-        </div>
-        <span>{therapist.appointmentCount} appts</span>
+      {/* Footer GỌN GÀNG HƠN */}
+      <div className="flex items-center justify-end text-xs pt-2 border-t border-gray-50 mt-auto">
+        <span className="font-semibold text-[#8c5e2d] bg-[#8c5e2d]/10 px-3 py-1 rounded-lg">
+          {therapist.appointmentCount || 0} Appointments
+        </span>
       </div>
     </div>
   );
