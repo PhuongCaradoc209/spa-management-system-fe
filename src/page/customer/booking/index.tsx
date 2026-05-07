@@ -9,6 +9,7 @@ import EventCard from "./components/EventCard";
 import SelectField from "./components/SelectField";
 import QuickStat from "./components/QuickStat";
 import { PlusCircleIcon } from "@phosphor-icons/react";
+import BookingModal from "./components/BookingModal";
 
 const myEvents = [
   {
@@ -48,6 +49,7 @@ const BookingPage = () => {
 
   const [activeView, setActiveView] = useState<string>("dayGridMonth");
   const [calendarTitle, setCalendarTitle] = useState<string>("");
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   // const [selectedTherapist, setSelectedTherapist] = useState<string>("All Specialists");
   // const [selectedService, setSelectedService] = useState<string>("All Services");
 
@@ -102,7 +104,10 @@ const BookingPage = () => {
           </div>
         </div>
         <div className="mt-2">
-          <button className="w-full bg-[#8c5e2d] hover:bg-[#784f25] transition-colors text-white py-3 px-4 rounded-full font-bold flex items-center justify-center gap-2 shadow-md">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="w-full bg-[#8c5e2d] hover:bg-[#784f25] transition-colors text-white py-3 px-4 rounded-full font-bold flex items-center justify-center gap-2 shadow-md"
+          >
             <PlusCircleIcon size={24} />
             Book Appointment
           </button>
@@ -166,6 +171,11 @@ const BookingPage = () => {
           }}
         />
       </div>
+
+      <BookingModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   );
 };
