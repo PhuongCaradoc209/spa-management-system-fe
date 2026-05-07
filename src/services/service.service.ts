@@ -29,13 +29,18 @@ export type UpdateServiceRequest = {
   isActive?: boolean;
 };
 
+export type ServiceList = {
+  id: string;
+  categoryId: string;
+  name: string;
+};
+
 export type ServiceResponse = Record<string, unknown>;
+export type StaffResponse = Record<string, unknown>;
 export type ServiceListResponse = Record<string, unknown>;
 
 export const serviceService = {
-  listServices: async (
-    params?: ServiceListQuery,
-  ): Promise<ServiceListResponse> => {
+  listServices: async (params?: ServiceListQuery): Promise<ServiceList[]> => {
     return apiClient.get("/services", { params });
   },
 
@@ -61,5 +66,8 @@ export const serviceService = {
 
   deleteService: async (id: string): Promise<void> => {
     return apiClient.delete(`/services/${id}`);
+  },
+  listStaffServices: async (id: string): Promise<StaffResponse> => {
+    return apiClient.get(`/services/${id}/staff`);
   },
 };

@@ -46,6 +46,12 @@ export const appointmentService = {
     return apiClient.get(`/appointments/${id}`);
   },
 
+  getAppointmentsByStaff: async (
+    staffId: string,
+  ): Promise<AppointmentListResponse> => {
+    return apiClient.get(`/appointments/staff/${staffId}/count`);
+  },
+
   updateAppointmentStatus: async (
     id: string,
     payload: UpdateAppointmentStatusRequest,

@@ -1,110 +1,15 @@
 import { useMemo, useState } from "react";
-import {
-  StarIcon,
-  SortAscendingIcon,
-  CalendarBlankIcon,
-} from "@phosphor-icons/react";
-import TherapistCard, { type Therapist } from "./components/TherapistCard";
+import { SortAscending, SortDescending } from "@phosphor-icons/react";
+import TherapistCard from "./components/TherapistCard";
 import TherapistSearchBar from "./components/TherapistSearchBar";
 import FilterDropdown from "./components/FilterDropdown";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { staffService } from "@/services/staff.service";
+import { appointmentService } from "@/services/appointment.service";
+import { serviceService, type ServiceList } from "@/services/service.service";
 
-const MOCK_THERAPISTS: Therapist[] = [
-  {
-    id: "1",
-    firstName: "Elena",
-    lastName: "Vance",
-    phone: "+1 (555) 012-3456",
-    specializations: ["Aromatherapy", "Deep Tissue"],
-    rating: 4.9,
-    reviewCount: 142,
-    appointmentCount: 120,
-    status: "AVAILABLE",
-    avatarColor: "#6BAE95",
-  },
-  {
-    id: "2",
-    firstName: "Marcus",
-    lastName: "Thorne",
-    phone: "+1 (555) 098-7654",
-    specializations: ["Sports Massage", "Hot Stone"],
-    rating: 4.8,
-    reviewCount: 89,
-    appointmentCount: 215,
-    status: "IN SESSION",
-    avatarColor: "#6E9CB8",
-  },
-  {
-    id: "3",
-    firstName: "Hannah",
-    lastName: "Price",
-    phone: "+1 (555) 443-2211",
-    specializations: ["Skin Care", "Aesthetics"],
-    rating: 5.0,
-    reviewCount: 204,
-    appointmentCount: 432,
-    status: "OFF DUTY",
-    avatarColor: "#E8A87C",
-  },
-  {
-    id: "4",
-    firstName: "Julian",
-    lastName: "Reed",
-    phone: "+1 (555) 321-7654",
-    specializations: ["Reflexology", "Swedish"],
-    rating: 4.7,
-    reviewCount: 65,
-    appointmentCount: 98,
-    status: "AVAILABLE",
-    avatarColor: "#8E84C0",
-  },
-  {
-    id: "5",
-    firstName: "Sofia",
-    lastName: "Hartman",
-    phone: "+1 (555) 210-9988",
-    specializations: ["Hot Stone", "Aromatherapy"],
-    rating: 4.6,
-    reviewCount: 77,
-    appointmentCount: 154,
-    status: "AVAILABLE",
-    avatarColor: "#D48A8A",
-  },
-  {
-    id: "6",
-    firstName: "Leo",
-    lastName: "Nakamura",
-    phone: "+1 (555) 887-3300",
-    specializations: ["Deep Tissue", "Sports Massage"],
-    rating: 4.9,
-    reviewCount: 120,
-    appointmentCount: 301,
-    status: "IN SESSION",
-    avatarColor: "#5A9A8A",
-  },
-];
+const ALL_STATUSES: string[] = ["All Status", "AVAILABLE", "OFF DUTY"];
 
-const ALL_SPECIALIZATIONS = [
-  "All Specializations",
-  "Aromatherapy",
-  "Deep Tissue",
-  "Sports Massage",
-  "Hot Stone",
-  "Skin Care",
-  "Aesthetics",
-  "Reflexology",
-  "Swedish",
-];
-
-const ALL_STATUSES: string[] = [
-  "All Status",
-  "AVAILABLE",
-  "IN SESSION",
-  "OFF DUTY",
-];
-
-type SortKey = "rating" | "appointments";
-
-// Summary card (sidebar)
 const SummaryChip = ({
   label,
   count,
@@ -122,41 +27,84 @@ const SummaryChip = ({
   </div>
 );
 
-// Main Page
 const TherapistPage = () => {
   const [search, setSearch] = useState("");
-  const [specFilter, setSpecFilter] = useState("All Specializations");
+  const [specFilter, setSpecFilter] = useState("All Services");
   const [statusFilter, setStatusFilter] = useState("All Status");
-  const [sortKey, setSortKey] = useState<SortKey>("rating");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+
+  const { data: servicesList = [] } = useQuery({
+    queryKey: ["listservices"],
+    queryFn: () => serviceService.listServices(),
+    select: (data: ServiceList[] | { services: ServiceList[] }) => {
+      const services = Array.isArray(data) ? data : data?.services || [];
+      const formattedOptions = services.map((service) => ({
+        value: service.id,
+        label: service.name,
+      }));
+      return [{ value: "all", label: "All Services" }, ...formattedOptions];
+    },
+  });
+
+  const { data: staffList = [], isLoading: isStaffLoading } = useQuery({
+    queryKey: ["therapistsList"],
+    queryFn: async () => {
+      const response: any = await staffService.listStaff();
+      return response?.staff || [];
+    },
+  });
+
+  const countQueries = useQueries({
+    queries: staffList.map((staff: any) => ({
+      queryKey: ["appointmentCount", staff.id],
+      queryFn: () => appointmentService.getAppointmentsByStaff(staff.id),
+      enabled: !!staff.id,
+      staleTime: 1000 * 60 * 5,
+    })),
+  });
+
+  const therapistsList = useMemo(() => {
+    return staffList.map((staff: any, index: number) => {
+      const countQuery = countQueries[index];
+      const count = (countQuery?.data as any)?.total || 0;
+      return {
+        ...staff,
+        appointmentCount: count,
+        isCountLoading: countQuery?.isLoading,
+      };
+    });
+  }, [staffList, countQueries]);
 
   const filtered = useMemo(() => {
-    return MOCK_THERAPISTS.filter((t) => {
-      const fullName = `${t.firstName} ${t.lastName}`.toLowerCase();
-      const matchSearch =
-        fullName.includes(search.toLowerCase()) ||
-        t.specializations.some((s) =>
-          s.toLowerCase().includes(search.toLowerCase()),
-        );
-      const matchSpec =
-        specFilter === "All Specializations" ||
-        t.specializations.includes(specFilter);
-      const matchStatus =
-        statusFilter === "All Status" || (t.status as string) === statusFilter;
-      return matchSearch && matchSpec && matchStatus;
-    }).sort((a, b) =>
-      sortKey === "rating"
-        ? b.rating - a.rating
-        : b.appointmentCount - a.appointmentCount,
-    );
-  }, [search, specFilter, statusFilter, sortKey]);
+    return therapistsList
+      .filter((t: any) => {
+        const fullName = `${t.firstName} ${t.lastName}`.toLowerCase();
 
-  const available = MOCK_THERAPISTS.filter(
-    (t) => t.status === "AVAILABLE",
-  ).length;
-  const inSession = MOCK_THERAPISTS.filter(
-    (t) => t.status === "IN SESSION",
-  ).length;
-  const offDuty = MOCK_THERAPISTS.filter((t) => t.status === "OFF DUTY").length;
+        const matchSearch =
+          fullName.includes(search.toLowerCase()) ||
+          t.services?.some((s: any) =>
+            s.name.toLowerCase().includes(search.toLowerCase()),
+          );
+
+        const matchSpec =
+          specFilter === "All Services" ||
+          t.services?.some((s: any) => s.name === specFilter);
+
+        const mappedStatus = t.isAvailable ? "AVAILABLE" : "OFF DUTY";
+        const matchStatus =
+          statusFilter === "All Status" || mappedStatus === statusFilter;
+
+        return matchSearch && matchSpec && matchStatus;
+      })
+      .sort((a: any, b: any) => {
+        const countA = a.appointmentCount || 0;
+        const countB = b.appointmentCount || 0;
+        return sortOrder === "desc" ? countB - countA : countA - countB;
+      });
+  }, [search, specFilter, statusFilter, sortOrder, therapistsList]);
+
+  const available = therapistsList.filter((t: any) => t.isAvailable).length;
+  const offDuty = therapistsList.filter((t: any) => !t.isAvailable).length;
 
   return (
     <div className="pt-32 pb-24 mx-24 lg:mx-32 flex flex-col lg:flex-row gap-6 text-black">
@@ -171,84 +119,61 @@ const TherapistPage = () => {
               color="bg-[#d4edda]"
             />
             <SummaryChip
-              label="In Session"
-              count={inSession}
-              color="bg-[#cce4f0]"
-            />
-            <SummaryChip
               label="Off Duty"
               count={offDuty}
               color="bg-[#e9e9e9]"
             />
           </div>
         </div>
-
-        <div>
-          <h3 className="font-bold text-[#2d4b4e] mb-3 text-lg">Sort By</h3>
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={() => setSortKey("rating")}
-              className={`flex items-center gap-2 w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                sortKey === "rating"
-                  ? "bg-[#3e6658] text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <StarIcon
-                size={15}
-                weight={sortKey === "rating" ? "fill" : "regular"}
-              />
-              Rating
-            </button>
-            <button
-              onClick={() => setSortKey("appointments")}
-              className={`flex items-center gap-2 w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                sortKey === "appointments"
-                  ? "bg-[#3e6658] text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <CalendarBlankIcon
-                size={15}
-                weight={sortKey === "appointments" ? "fill" : "regular"}
-              />
-              Appointments
-            </button>
-          </div>
-        </div>
       </aside>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col gap-5">
-        {/* Toolbar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <div className="flex-1 w-full">
             <TherapistSearchBar value={search} onChange={setSearch} />
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
             <FilterDropdown
-              label="All Specializations"
-              options={ALL_SPECIALIZATIONS}
+              label="All Services"
+              options={servicesList.map((s) => s.label)} // Map lấy tên dịch vụ từ API
               value={specFilter}
               onChange={setSpecFilter}
             />
+
             <FilterDropdown
               label="Status"
               options={ALL_STATUSES}
               value={statusFilter}
               onChange={setStatusFilter}
             />
-            <div className="flex items-center gap-1 text-xs text-gray-400 font-medium px-1">
-              <SortAscendingIcon size={14} />
-              <span>{sortKey === "rating" ? "Rating" : "Appointments"} ↓</span>
-            </div>
+
+            <button
+              onClick={() =>
+                setSortOrder(sortOrder === "desc" ? "asc" : "desc")
+              }
+              className="flex items-center gap-2 text-sm font-medium text-[#3e6658] bg-[#f0f4f2] hover:bg-[#e0e8e4] px-4 py-2.5 rounded-xl transition-colors border border-transparent focus:border-[#3e6658]"
+              title="Sort by Appointments"
+            >
+              {sortOrder === "desc" ? (
+                <SortDescending size={18} />
+              ) : (
+                <SortAscending size={18} />
+              )}
+              <span>{sortOrder === "desc" ? "Most Appts" : "Least Appts"}</span>
+            </button>
           </div>
         </div>
 
         {/* Grid */}
-        {filtered.length > 0 ? (
+        {isStaffLoading ? (
+          <div className="py-24 text-center text-gray-500 font-medium">
+            Loading therapists...
+          </div>
+        ) : filtered.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-            {filtered.map((therapist) => (
+            {filtered.map((therapist: any) => (
               <TherapistCard key={therapist.id} therapist={therapist} />
             ))}
           </div>
@@ -263,7 +188,7 @@ const TherapistPage = () => {
             <button
               onClick={() => {
                 setSearch("");
-                setSpecFilter("All Specializations");
+                setSpecFilter("All Services"); // SỬA: Đổi về mặc định
                 setStatusFilter("All Status");
               }}
               className="text-xs text-[#3e6658] font-semibold hover:underline"

@@ -1,89 +1,99 @@
 import { useState } from "react";
 import { X } from "@phosphor-icons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { serviceService } from "@/services/service.service";
+import { appointmentService } from "@/services/appointment.service";
 
 interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  servicesList?: { value: string; label: string }[];
 }
 
-const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
-  const [selectedService, setSelectedService] = useState("");
-  const [schedule, setSchedule] = useState("");
-  const [selectedStaff, setSelectedStaff] = useState("");
-  const [notes, setNotes] = useState("");
+interface Staff {
+  id: string;
+  firstName: string;
+  lastName: string;
+  isAvailable: string;
+}
 
-  // Reset form khi Modal đóng
-  //   useEffect(() => {
-  //     if (!isOpen) {
-  //       setSelectedService("");
-  //       setSchedule("");
-  //       setSelectedStaff("");
-  //       setNotes("");
-  //     }
-  //   }, [isOpen]);
+const initialFormState = {
+  staffId: "",
+  scheduledAt: "",
+  serviceIds: [],
+  notes: "",
+};
 
-  //   // Khi Service thay đổi, tự động clear Staff cũ đã chọn
-  //   useEffect(() => {
-  //     setSelectedStaff("");
-  //   }, [selectedService]);
+const BookingModal: React.FC<BookingModalProps> = ({
+  isOpen,
+  onClose,
+  servicesList,
+}) => {
+  const [formData, setFormData] = useState(initialFormState);
+  const queryClient = useQueryClient();
+  const handleChange = (field: any, value: any) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      [field]: value,
+    }));
+  };
 
-  //   // --- TANSTACK QUERY: FETCH SERVICES ---
-  //   const { data: services = [], isLoading: isServicesLoading } = useQuery({
-  //     queryKey: ["services"],
-  //     queryFn: async () => {
-  //       // Sửa lại URL API thực tế của bạn
-  //       const response = await axios.get<ServiceType[]>("/api/services");
-  //       return response.data;
-  //     },
-  //     enabled: isOpen, // Chỉ gọi API khi Modal đang mở
-  //   });
+  const { data: staffOptions = [], isLoading: isStaffLoading } = useQuery({
+    queryKey: ["staffs", formData.serviceIds[0]],
+    queryFn: () => serviceService.listStaffServices(formData.serviceIds[0]),
+    enabled: !!formData.serviceIds[0],
+    select: (data: any) => {
+      const staffList = data?.staff || [];
+      return staffList.map((staff: Staff) => ({
+        value: staff.id,
+        label: `${staff.firstName} ${staff.lastName}`,
+        isAvailable: staff.isAvailable,
+      }));
+    },
+  });
 
-  //   // --- TANSTACK QUERY: FETCH STAFFS (DEPENDENT QUERY) ---
-  //   const { data: staffs = [], isLoading: isStaffLoading } = useQuery({
-  //     // Thêm selectedService vào key để tự động gọi lại API khi đổi service
-  //     queryKey: ["staffs", selectedService],
-  //     queryFn: async () => {
-  //       // Sửa lại URL API thực tế của bạn, truyền param serviceId
-  //       const response = await axios.get<StaffType[]>("/api/staffs", {
-  //         params: { serviceId: selectedService },
-  //       });
-  //       return response.data;
-  //     },
-  //     // Quan trọng: Chỉ gọi API khi có selectedService và Modal đang mở
-  //     enabled: !!selectedService && isOpen,
-  //   });
+  const bookingMutation = useMutation({
+    mutationKey: ["createBooking"],
+    mutationFn: (payload: any) => {
+      const formattedPayload = {
+        ...payload,
+        scheduledAt: payload.scheduledAt + ":00.000Z",
+      };
+      return appointmentService.createAppointment(formattedPayload);
+    },
+    onSuccess: () => {
+      alert("Booking successful!");
+      onClose();
+      handleResetForm();
+      queryClient.invalidateQueries({
+        queryKey: ["listBooking", "therapistsList"],
+      });
+    },
+    onError: (error) => {
+      console.error(error);
+      alert("Failed to create booking. Please try again.");
+    },
+  });
 
-  //   // --- TANSTACK QUERY: MUTATION SUBMIT BOOKING ---
-  //   const bookingMutation = useMutation({
-  //     mutationFn: async (newBooking: any) => {
-  //       // Sửa lại URL API tạo booking của bạn
-  //       const response = await axios.post("/api/bookings", newBooking);
-  //       return response.data;
-  //     },
-  //     onSuccess: () => {
-  //       alert("Booking Success!");
-  //       // Báo cho Calendar biết để fetch lại dữ liệu (Refresh lịch)
-  //       // queryClient.invalidateQueries({ queryKey: ["events"] });
-  //       onClose();
-  //     },
-  //     onError: (error) => {
-  //       console.error("Booking failed:", error);
-  //       alert("Có lỗi xảy ra khi đặt lịch. Vui lòng thử lại!");
-  //     },
-  //   });
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    bookingMutation.mutate(formData);
+  };
 
-  //   const handleSubmit = (e: React.FormEvent) => {
-  //     e.preventDefault();
-  //     const formData = {
-  //       serviceId: selectedService,
-  //       schedule,
-  //       staffId: selectedStaff,
-  //       notes,
-  //     };
+  const handleResetForm = () => {
+    setFormData(initialFormState);
+  };
 
-  //     // Kích hoạt mutation để gọi API
-  //     bookingMutation.mutate(formData);
-  //   };
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let h = 8; h < 22; h++) {
+      const hour = h.toString().padStart(2, "0");
+      slots.push(`${hour}:00`);
+      slots.push(`${hour}:30`);
+    }
+    return slots;
+  };
+  const TIME_SLOTS = generateTimeSlots();
 
   if (!isOpen) return null;
 
@@ -102,81 +112,119 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
           Book New Appointment
         </h2>
 
-        <form
-          // onSubmit={handleSubmit}
-          className="flex flex-col gap-4"
-        >
-          {/* 1. Selection Service */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-sm font-semibold text-gray-700">
-              1. Service Type <span className="text-red-500">*</span>
+              Service Type <span className="text-red-500">*</span>
             </label>
             <select
               required
-              //   disabled={isServicesLoading || bookingMutation.isPending}
+              disabled={bookingMutation.isPending}
               className="border border-gray-300 rounded-lg p-3 outline-none focus:border-[#8c5e2d] focus:ring-1 focus:ring-[#8c5e2d] bg-white cursor-pointer disabled:bg-gray-100"
-              value={selectedService}
-              onChange={(e) => setSelectedService(e.target.value)}
+              value={formData.serviceIds[0] || ""}
+              onChange={(e) => {
+                handleChange("serviceIds", [e.target.value]);
+                handleChange("staffId", "");
+              }}
             >
-              {/* <option value="" disabled>
-                {isServicesLoading ? "Loading services..." : "Select a service..."}
-              </option>
-              {services.map((srv) => (
-                <option key={srv.id} value={srv.id}>{srv.name}</option>
-              ))} */}
+              {servicesList?.map((srv) => (
+                <option key={srv.value} value={srv.value}>
+                  {srv.label}
+                </option>
+              ))}
             </select>
           </div>
 
           {/* 2. Schedule */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-semibold text-gray-700">
-              2. Schedule <span className="text-red-500">*</span>
+              Schedule <span className="text-red-500">*</span>
             </label>
-            <input
-              required
-              //   disabled={bookingMutation.isPending}
-              type="datetime-local"
-              className="border border-gray-300 rounded-lg p-3 outline-none focus:border-[#8c5e2d] focus:ring-1 focus:ring-[#8c5e2d] cursor-pointer disabled:bg-gray-100"
-              value={schedule}
-              onChange={(e) => setSchedule(e.target.value)}
-            />
+            <div className="flex gap-2">
+              {/* Ô chọn Ngày */}
+              <input
+                required
+                disabled={bookingMutation.isPending}
+                type="date"
+                className="flex-1 border border-gray-300 rounded-lg p-3 outline-none focus:border-[#8c5e2d] focus:ring-1 focus:ring-[#8c5e2d] cursor-pointer disabled:bg-gray-100"
+                // Lấy phần ngày (YYYY-MM-DD) từ state scheduledAt
+                value={
+                  formData.scheduledAt ? formData.scheduledAt.split("T")[0] : ""
+                }
+                onChange={(e) => {
+                  const date = e.target.value;
+                  const time = formData.scheduledAt
+                    ? formData.scheduledAt.split("T")[1]
+                    : "09:00"; // Mặc định 09:00 nếu chưa có giờ
+                  handleChange("scheduledAt", `${date}T${time}`);
+                }}
+              />
+
+              {/* Ô chọn Giờ 24h */}
+              <select
+                required
+                disabled={bookingMutation.isPending || !formData.scheduledAt}
+                className="w-32 border border-gray-300 rounded-lg p-3 outline-none focus:border-[#8c5e2d] focus:ring-1 focus:ring-[#8c5e2d] bg-white cursor-pointer disabled:bg-gray-100"
+                // Lấy phần giờ (HH:mm) từ state scheduledAt
+                value={
+                  formData.scheduledAt
+                    ? formData.scheduledAt.split("T")[1].substring(0, 5)
+                    : ""
+                }
+                onChange={(e) => {
+                  const date = formData.scheduledAt.split("T")[0];
+                  const time = e.target.value;
+                  handleChange("scheduledAt", `${date}T${time}`);
+                }}
+              >
+                <option value="" disabled>
+                  Time
+                </option>
+                {TIME_SLOTS.map((time) => (
+                  <option key={time} value={time}>
+                    {time}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* 3. Service Staff */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-semibold text-gray-700">
-              3. Therapist / Staff <span className="text-red-500">*</span>
+              Therapist / Staff <span className="text-red-500">*</span>
             </label>
             <select
               required
-              //   disabled={!selectedService || isStaffLoading || bookingMutation.isPending}
+              disabled={!formData.serviceIds?.length || isStaffLoading}
               className="border border-gray-300 rounded-lg p-3 outline-none focus:border-[#8c5e2d] focus:ring-1 focus:ring-[#8c5e2d] bg-white disabled:bg-gray-100 disabled:cursor-not-allowed cursor-pointer"
-              value={selectedStaff}
-              onChange={(e) => setSelectedStaff(e.target.value)}
+              value={formData.staffId}
+              onChange={(e) => handleChange("staffId", e.target.value)}
             >
-              {/* <option value="" disabled>
-                {isStaffLoading 
-                  ? "Loading staff..." 
-                  : (selectedService ? "Select a therapist..." : "Please select a service first")}
+              <option value="" disabled>
+                {isStaffLoading
+                  ? "Loading staff..."
+                  : formData.serviceIds?.length > 0
+                    ? "Select a therapist..."
+                    : "Please select a service first"}
               </option>
-              {staffs.map((staff) => (
-                <option key={staff.id} value={staff.id}>{staff.name}</option>
-              ))} */}
+              {staffOptions?.map((staff: any) => (
+                <option key={staff.value} value={staff.value}>
+                  {staff.label}
+                </option>
+              ))}
             </select>
           </div>
 
           {/* 4. Notes */}
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-semibold text-gray-700">
-              4. Notes
-            </label>
+            <label className="text-sm font-semibold text-gray-700">Notes</label>
             <textarea
-              //   disabled={bookingMutation.isPending}
+              disabled={bookingMutation.isPending}
               rows={3}
               placeholder="Any special requests, allergies, or medical conditions?"
               className="border border-gray-300 rounded-lg p-3 outline-none focus:border-[#8c5e2d] focus:ring-1 focus:ring-[#8c5e2d] resize-none disabled:bg-gray-100"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              value={formData.notes}
+              onChange={(e) => handleChange("notes", e.target.value)}
             />
           </div>
 
@@ -184,18 +232,21 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
           <div className="flex justify-end gap-3 mt-4">
             <button
               type="button"
-              onClick={onClose}
-              //   disabled={bookingMutation.isPending}
+              onClick={() => {
+                onClose();
+                handleResetForm();
+              }}
+              disabled={bookingMutation.isPending}
               className="px-5 py-2.5 rounded-lg font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              //   disabled={bookingMutation.isPending}
+              disabled={bookingMutation.isPending}
               className="px-5 py-2.5 rounded-lg font-bold text-white bg-[#8c5e2d] hover:bg-[#784f25] transition shadow-md flex items-center justify-center min-w-[150px] disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {/* {bookingMutation.isPending ? "Booking..." : "Confirm Booking"} */}
+              {bookingMutation.isPending ? "Booking..." : "Confirm Booking"}
             </button>
           </div>
         </form>
