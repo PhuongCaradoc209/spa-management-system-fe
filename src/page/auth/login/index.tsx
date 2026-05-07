@@ -26,7 +26,7 @@ const LoginPage: React.FC = () => {
       localStorage.setItem("auth_user", JSON.stringify(data.user));
 
       if (data.user.role === UserRole.Customer) {
-        navigate(NAV_PATH.BOOKING);
+        navigate(NAV_PATH.HOME);
         return;
       }
 
