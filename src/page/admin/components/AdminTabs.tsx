@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import AppButton from "@/components/common/AppButton";
+import AdminLoyaltyTable from "./AdminLoyaltyTable";
 
 interface AdminTabsProps {
   children?: React.ReactNode;
@@ -28,11 +29,7 @@ const AdminTabs: React.FC<AdminTabsProps> = ({ children }) => {
       </div>
       
       {activeTab === "history" && children}
-      {activeTab === "loyalty" && (
-        <div className="py-20 text-center text-on-surface-variant/40 italic">
-          Loyalty dashboard coming soon...
-        </div>
-      )}
+      {activeTab === "loyalty" && <AdminLoyaltyTable />}
     </div>
   );
 };

@@ -1,8 +1,22 @@
 import AppButton from "@/components/common/AppButton";
 import { NAV_PATH } from "@/router/paths";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 
 const AdminHeader: React.FC = () => {
+  const navigate = useNavigate();
+  const isLoggedIn = Boolean(localStorage.getItem("access_token"));
+
+  const handleAuthAction = () => {
+    if (isLoggedIn) {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      navigate(NAV_PATH.LOGIN);
+      return;
+    }
+
+    navigate(NAV_PATH.LOGIN);
+  };
+
   return (
     <header className="fixed top-0 w-full z-50 flex items-center justify-between px-8 py-6 bg-surface/70 backdrop-blur-xl shadow-[0_8px_32px_rgba(62,102,88,0.05)] border-b border-outline-variant/30">
       <div className="flex items-center gap-4">
@@ -43,11 +57,13 @@ const AdminHeader: React.FC = () => {
           </NavLink>
         </div>
         <AppButton
-          variant="ghost"
+          variant={isLoggedIn ? "outline" : "primary"}
           size="sm"
-          iconLeft="add_circle"
-          className="p-2 min-w-0"
-        />
+          iconLeft={isLoggedIn ? "logout" : "login"}
+          onClick={handleAuthAction}
+        >
+          {isLoggedIn ? "Logout" : "Login"}
+        </AppButton>
       </div>
     </header>
   );
