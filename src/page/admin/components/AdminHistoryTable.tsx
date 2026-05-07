@@ -1,5 +1,6 @@
 import React from "react";
 import AppButton from "@/components/common/AppButton";
+import TableSkeletonRows from "@/components/common/TableSkeletonRows";
 import { AppointmentStatus } from "@/constant/enum/appointment.enum";
 import AdminHistoryRow from "./AdminHistoryRow";
 import {
@@ -27,17 +28,18 @@ const AdminHistoryTable: React.FC = () => {
     isLoading,
     isError,
     isMutating,
-    refresh,
+    resetFilters,
     selectAppointment,
     clearSelection,
     selectedAppointment,
     detailLoading,
     detailError,
-    markCompleted,
+    advanceStatus,
     cancelAppointment,
-    generateInvoice,
     setTodayFilter,
   } = useAdminAppointments();
+
+  console.log("Appointments:", appointments);
 
   const statusOptions = [
     { value: "", label: "All Status" },
@@ -56,7 +58,9 @@ const AdminHistoryTable: React.FC = () => {
       {/* Search & Filters */}
       <div className="flex flex-col md:flex-row gap-4 justify-between items-center px-4">
         <div className="relative w-full md:w-96">
-          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">
+            search
+          </span>
           <input
             className="w-full pl-12 pr-4 py-3 bg-surface-container-lowest border-none rounded-2xl text-sm focus:ring-2 focus:ring-primary-fixed focus:bg-white transition-all outline-none"
             placeholder="Search customer or service..."
@@ -66,9 +70,6 @@ const AdminHistoryTable: React.FC = () => {
           />
         </div>
         <div className="flex gap-4 items-center overflow-x-auto no-scrollbar w-full md:w-auto">
-          <AppButton variant="outline" size="sm" iconLeft="tune" className="bg-white">
-            Filter
-          </AppButton>
           <div className="relative">
             <input
               className="rounded-full border border-outline-variant/30 bg-white px-4 py-2 text-[10px] uppercase tracking-widest text-on-surface-variant"
@@ -91,9 +92,7 @@ const AdminHistoryTable: React.FC = () => {
               className="rounded-full border border-outline-variant/30 bg-white px-4 py-2 text-[10px] uppercase tracking-widest text-on-surface-variant"
               value={statusFilter}
               onChange={(event) =>
-                setStatusFilter(
-                  event.target.value as AppointmentStatus | "",
-                )
+                setStatusFilter(event.target.value as AppointmentStatus | "")
               }
             >
               {statusOptions.map((option) => (
@@ -108,7 +107,7 @@ const AdminHistoryTable: React.FC = () => {
             size="sm"
             iconLeft="refresh"
             className="bg-white"
-            onClick={refresh}
+            onClick={resetFilters}
           >
             Refresh
           </AppButton>
@@ -144,11 +143,15 @@ const AdminHistoryTable: React.FC = () => {
             </div>
           </div>
 
-          {(detailLoading || detailError) && (
+          {detailLoading && (
+            <div className="mt-4 space-y-2">
+              <div className="h-4 w-40 rounded-full bg-surface-container-high animate-pulse" />
+              <div className="h-4 w-56 rounded-full bg-surface-container-high animate-pulse" />
+            </div>
+          )}
+          {detailError && !detailLoading && (
             <div className="mt-4 text-xs text-on-surface-variant/60">
-              {detailLoading
-                ? "Loading appointment detail..."
-                : "Unable to load appointment detail."}
+              Unable to load appointment detail.
             </div>
           )}
 
@@ -191,7 +194,9 @@ const AdminHistoryTable: React.FC = () => {
               </p>
               <p className="text-on-surface">
                 {formatCurrency(
-                  selectedDetail.totalPrice ?? selectedDetail.price,
+                  selectedDetail.totalAmount ??
+                    selectedDetail.totalPrice ??
+                    selectedDetail.price,
                   selectedDetail.currency,
                 )}
               </p>
@@ -205,26 +210,29 @@ const AdminHistoryTable: React.FC = () => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-surface-container-low">
-              <th className="px-6 py-5 text-[10px] font-label tracking-[0.15em] text-on-surface-variant/40 uppercase">Customer</th>
-              <th className="px-6 py-5 text-[10px] font-label tracking-[0.15em] text-on-surface-variant/40 uppercase">Service Type</th>
-              <th className="px-6 py-5 text-[10px] font-label tracking-[0.15em] text-on-surface-variant/40 uppercase">Staff</th>
-              <th className="px-6 py-5 text-[10px] font-label tracking-[0.15em] text-on-surface-variant/40 uppercase">Date & Time</th>
-              <th className="px-6 py-5 text-[10px] font-label tracking-[0.15em] text-on-surface-variant/40 uppercase">Price</th>
-              <th className="px-6 py-5 text-[10px] font-label tracking-[0.15em] text-on-surface-variant/40 uppercase">Status</th>
+              <th className="px-6 py-5 text-[10px] font-label tracking-[0.15em] text-on-surface-variant/40 uppercase">
+                Customer
+              </th>
+              <th className="px-6 py-5 text-[10px] font-label tracking-[0.15em] text-on-surface-variant/40 uppercase">
+                Service Type
+              </th>
+              <th className="px-6 py-5 text-[10px] font-label tracking-[0.15em] text-on-surface-variant/40 uppercase">
+                Staff
+              </th>
+              <th className="px-6 py-5 text-[10px] font-label tracking-[0.15em] text-on-surface-variant/40 uppercase">
+                Date & Time
+              </th>
+              <th className="px-6 py-5 text-[10px] font-label tracking-[0.15em] text-on-surface-variant/40 uppercase">
+                Price
+              </th>
+              <th className="px-6 py-5 text-[10px] font-label tracking-[0.15em] text-on-surface-variant/40 uppercase">
+                Status
+              </th>
               <th className="px-6 py-5"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-outline-variant/10">
-            {isLoading && (
-              <tr>
-                <td
-                  className="px-6 py-10 text-center text-sm text-on-surface-variant/60"
-                  colSpan={7}
-                >
-                  Loading appointments...
-                </td>
-              </tr>
-            )}
+            {isLoading && <TableSkeletonRows rows={6} columns={7} />}
             {isError && !isLoading && (
               <tr>
                 <td
@@ -253,9 +261,8 @@ const AdminHistoryTable: React.FC = () => {
                   appointment={appointment}
                   disableActions={isMutating}
                   onViewDetail={selectAppointment}
-                  onComplete={markCompleted}
+                  onAdvance={advanceStatus}
                   onCancel={cancelAppointment}
-                  onInvoice={generateInvoice}
                 />
               ))}
           </tbody>

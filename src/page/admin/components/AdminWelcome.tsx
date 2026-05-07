@@ -1,5 +1,4 @@
 import React from "react";
-import AppButton from "@/components/common/AppButton";
 
 const AdminWelcome: React.FC = () => {
   return (
@@ -9,14 +8,6 @@ const AdminWelcome: React.FC = () => {
         <h2 className="text-5xl font-headline font-light tracking-tight text-primary leading-tight">
           Welcome back, <br /><span className="font-bold">Director Marcelle</span>
         </h2>
-      </div>
-      <div className="flex gap-3">
-        <AppButton variant="secondary">
-          Generate Report
-        </AppButton>
-        <AppButton variant="primary">
-          Quick Booking
-        </AppButton>
       </div>
     </div>
   );

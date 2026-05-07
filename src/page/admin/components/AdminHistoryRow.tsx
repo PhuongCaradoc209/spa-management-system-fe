@@ -1,6 +1,9 @@
 import React from "react";
 import AppButton from "@/components/common/AppButton";
-import { AppointmentStatus } from "@/constant/enum/appointment.enum";
+import {
+  AppointmentStatus,
+  type AppointmentStatus as AppointmentStatusType,
+} from "@/constant/enum/appointment.enum";
 import {
   formatCurrency,
   formatDateParts,
@@ -13,28 +16,41 @@ import {
 type AdminHistoryRowProps = {
   appointment: AppointmentListItem;
   onViewDetail: (id: string) => void;
-  onComplete: (id: string) => void;
+  onAdvance: (
+    id: string,
+    current?: AppointmentStatusType | string | null,
+  ) => void;
   onCancel: (id: string) => void;
-  onInvoice: (id: string) => void;
   disableActions?: boolean;
 };
 
 const AdminHistoryRow: React.FC<AdminHistoryRowProps> = ({
   appointment,
   onViewDetail,
-  onComplete,
+  onAdvance,
   onCancel,
-  onInvoice,
   disableActions,
 }) => {
   const appointmentId = appointment.id ?? appointment.appointmentId;
   const { date, time } = formatDateParts(appointment.scheduledAt);
   const statusValue = appointment.status ?? AppointmentStatus.Pending;
   const statusMeta = getStatusMeta(String(statusValue));
-  const canComplete = statusValue !== AppointmentStatus.Completed;
+  const canAdvance =
+    statusValue === AppointmentStatus.Pending ||
+    statusValue === AppointmentStatus.Confirmed ||
+    statusValue === AppointmentStatus.InProgress;
   const canCancel =
     statusValue !== AppointmentStatus.Cancelled &&
     statusValue !== AppointmentStatus.Completed;
+
+  const advanceIcon =
+    statusValue === AppointmentStatus.Pending
+      ? "check_circle"
+      : statusValue === AppointmentStatus.Confirmed
+        ? "play_circle"
+        : statusValue === AppointmentStatus.InProgress
+          ? "done_all"
+          : "check_circle";
 
   if (!appointmentId) {
     return null;
@@ -78,7 +94,9 @@ const AdminHistoryRow: React.FC<AdminHistoryRowProps> = ({
       </td>
       <td className="px-6 py-4 font-medium text-primary">
         {formatCurrency(
-          appointment.totalPrice ?? appointment.price,
+          appointment.totalAmount ??
+            appointment.totalPrice ??
+            appointment.price,
           appointment.currency,
         )}
       </td>
@@ -103,11 +121,11 @@ const AdminHistoryRow: React.FC<AdminHistoryRowProps> = ({
           <AppButton
             variant="ghost"
             size="sm"
-            iconLeft="check_circle"
+            iconLeft={advanceIcon}
             className="p-2 min-w-0"
-            disabled={!canComplete || disableActions}
-            aria-label="Mark completed"
-            onClick={() => onComplete(appointmentId)}
+            disabled={!canAdvance || disableActions}
+            aria-label="Advance status"
+            onClick={() => onAdvance(appointmentId, statusValue)}
           />
           <AppButton
             variant="ghost"
@@ -117,15 +135,6 @@ const AdminHistoryRow: React.FC<AdminHistoryRowProps> = ({
             disabled={!canCancel || disableActions}
             aria-label="Cancel appointment"
             onClick={() => onCancel(appointmentId)}
-          />
-          <AppButton
-            variant="ghost"
-            size="sm"
-            iconLeft="receipt_long"
-            className="p-2 min-w-0"
-            disabled={disableActions}
-            aria-label="Generate invoice"
-            onClick={() => onInvoice(appointmentId)}
           />
         </div>
       </td>
