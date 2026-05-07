@@ -2,7 +2,14 @@ import React, { useState } from "react";
 import AppButton from "@/components/common/AppButton";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
-import { authService } from "@/services/auth.service";
+import { authService, type LoginResponse } from "@/services/auth.service";
+import { NAV_PATH } from "@/router/paths";
+import { UserRole } from "@/constant/enum/user.enum";
+import { isAxiosError } from "axios";
+
+type ApiErrorResponse = {
+  message?: string;
+};
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -14,16 +21,30 @@ const LoginPage: React.FC = () => {
   // 2. Cấu hình mutation để gọi API login
   const loginMutation = useMutation({
     mutationFn: authService.login,
-    onSuccess: (data: any) => {
+    onSuccess: (data: LoginResponse) => {
       localStorage.setItem("access_token", data.accessToken);
-      navigate("/");
+      localStorage.setItem("auth_user", JSON.stringify(data.user));
+
+      if (data.user.role === UserRole.Customer) {
+        navigate(NAV_PATH.BOOKING);
+        return;
+      }
+
+      if (data.user.role === UserRole.Admin) {
+        navigate(NAV_PATH.ADMIN);
+        return;
+      }
+
+      navigate(NAV_PATH.HOME);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error(error);
-      alert(
-        error.response?.data?.message ||
-          "Đăng nhập thất bại. Vui lòng kiểm tra lại!",
-      );
+
+      const apiMessage = isAxiosError<ApiErrorResponse>(error)
+        ? error.response?.data?.message
+        : undefined;
+
+      alert(apiMessage || "Đăng nhập thất bại. Vui lòng kiểm tra lại!");
     },
   });
 
