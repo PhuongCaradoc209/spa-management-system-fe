@@ -57,23 +57,16 @@ const EventCard = ({ eventInfo }: EventCardProps) => {
       className="p-3 overflow-hidden m-2 rounded-xl text-white shadow-inner flex flex-col gap-1.5 border border-black/5"
       style={{ backgroundColor: bgColor }}
     >
-      {/* Header (Giờ + Dấu tích) */}
       <div className="flex justify-between items-center text-[11px] opacity-80">
         <span className="font-bold tracking-tight">{timeString}</span>
-        {/* Render Chấm trạng thái động */}
         <span
           className={`w-2 h-2 text-[9px] font-bold rounded-full flex justify-center items-center text-gray-800 ${statusDotClass}`}
-        >
-          {isCompleted && "✓"}
-        </span>
+        ></span>
       </div>
 
-      {/* Tên dịch vụ (Title) */}
       <div className="font-extrabold text-[13px] leading-tight truncate">
         {title}
       </div>
-
-      {/* Tên Therapist */}
       <div className="text-[11px] opacity-80 truncate font-semibold">
         {therapist}
       </div>

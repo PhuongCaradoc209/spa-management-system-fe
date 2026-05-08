@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppointmentStatus } from "@/constant/enum/appointment.enum";
 import { appointmentService } from "@/services/appointment.service";
 import { useAdminDashboardMappings } from "@/page/admin/hooks/useAdminDashboardMappings";
+import { invoiceService } from "@/services/invoice.service";
 
 export type AppointmentPerson = {
   id?: string;
@@ -22,6 +23,7 @@ export type AppointmentServiceItem = {
 export type AppointmentListItem = {
   id?: string;
   appointmentId?: string;
+  invoiceId?: string;
   customerId?: string;
   staffId?: string;
   totalAmount?: number | string | null;
@@ -33,6 +35,7 @@ export type AppointmentListItem = {
   totalPrice?: number | string | null;
   price?: number | string | null;
   currency?: string | null;
+  paymentStatus?: string;
 };
 
 type AppointmentServiceRaw = {
@@ -161,7 +164,8 @@ export const formatDateParts = (scheduledAt?: string | null) => {
   if (!scheduledAt) {
     return { date: "-", time: "-" };
   }
-  const date = new Date(scheduledAt);
+  const safeDateString = scheduledAt.replace("Z", "");
+  const date = new Date(safeDateString);
   if (Number.isNaN(date.getTime())) {
     return { date: scheduledAt, time: "-" };
   }
@@ -187,6 +191,10 @@ export const useAdminAppointments = () => {
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<
     string | null
   >(null);
+  const [paymentAppointmentId, setPaymentAppointmentId] = useState<
+    string | null
+  >(null);
+  const [paymentNote, setPaymentNote] = useState("Pay at counter");
 
   const queryParams = useMemo(
     () => ({
@@ -203,8 +211,29 @@ export const useAdminAppointments = () => {
     queryFn: () => appointmentService.listAppointments(queryParams),
   });
 
+  const invoicesQuery = useQuery({
+    queryKey: ["invoices"],
+    queryFn: () => invoiceService.listInvoices({ limit: 1000 }),
+  });
+
   const { usersMap, staffMap, servicesMap, customerProfilesMap } =
     useAdminDashboardMappings();
+
+  // Tạo map invoiceId từ appointmentId
+  const invoiceIdMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    const invoicesData = invoicesQuery.data as Record<string, any>;
+    const invoicesList = Array.isArray(invoicesData)
+      ? invoicesData
+      : invoicesData?.invoices || invoicesData?.data?.invoices || [];
+
+    invoicesList.forEach((invoice: any) => {
+      if (invoice?.appointmentId && invoice?.id) {
+        map[invoice.appointmentId] = invoice.id;
+      }
+    });
+    return map;
+  }, [invoicesQuery.data]);
 
   const { items, total } = normalizeAppointments(
     appointmentsQuery.data as
@@ -301,17 +330,27 @@ export const useAdminAppointments = () => {
         item.staffId || (item as Record<string, string | undefined>).staffId;
       const mappedServices = buildServices(item.services);
       const totalAmount = getTotalAmount(item, mappedServices ?? undefined);
+      const appointmentId = item.id ?? item.appointmentId;
+      const invoiceId = appointmentId ? invoiceIdMap[appointmentId] : undefined;
       return {
         ...item,
         customerId,
         staffId,
+        invoiceId,
         customer: item.customer ?? buildPerson(customerId),
         staff: item.staff ?? buildPerson(staffId),
         services: mappedServices,
         totalAmount,
       };
     });
-  }, [items, servicesMap, staffMap, usersMap, customerProfilesMap]);
+  }, [
+    items,
+    servicesMap,
+    staffMap,
+    usersMap,
+    customerProfilesMap,
+    invoiceIdMap,
+  ]);
 
   const filteredItems = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -329,6 +368,31 @@ export const useAdminAppointments = () => {
       );
     });
   }, [mappedItems, search]);
+
+  const selectedPayDetail = useMemo(
+    () =>
+      paymentAppointmentId
+        ? mappedItems.find(
+            (item) =>
+              item.id === paymentAppointmentId ||
+              item.appointmentId === paymentAppointmentId,
+          )
+        : undefined,
+    [mappedItems, paymentAppointmentId],
+  );
+
+  const paymentAmount = useMemo(
+    () =>
+      selectedPayDetail
+        ? Number(
+            selectedPayDetail.totalAmount ??
+              selectedPayDetail.totalPrice ??
+              selectedPayDetail.price ??
+              0,
+          )
+        : 0,
+    [selectedPayDetail],
+  );
 
   const appointmentDetailQuery = useQuery({
     queryKey: ["appointments", selectedAppointmentId],
@@ -447,6 +511,45 @@ export const useAdminAppointments = () => {
     refresh();
   };
 
+  const markPaidMutation = useMutation({
+    mutationFn: async (payload: {
+      appointmentId: string;
+      invoiceId?: string;
+      amount: number;
+      paymentMethod: string;
+      note: string;
+    }) => {
+      let invoiceId = payload.invoiceId;
+
+      // Nếu chưa có invoiceId, tạo invoice trước
+      if (!invoiceId) {
+        const invoiceResponse =
+          await appointmentService.generateAppointmentInvoice(
+            payload.appointmentId,
+          );
+        invoiceId =
+          (invoiceResponse as any)?.id ?? (invoiceResponse as any)?.invoiceId;
+
+        if (!invoiceId) {
+          throw new Error("Không thể tạo hóa đơn. Vui lòng thử lại.");
+        }
+      }
+
+      // Sau đó thực hiện thanh toán
+      return invoiceService.markInvoicePaid(invoiceId, {
+        amount: payload.amount,
+        paymentMethod: "CASH" as const,
+        note: payload.note,
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      await queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      setPaymentAppointmentId(null);
+      setPaymentNote("Pay at counter");
+    },
+  });
+
   return {
     appointments: filteredItems,
     total,
@@ -465,6 +568,7 @@ export const useAdminAppointments = () => {
     isMutating:
       updateStatusMutation.isPending ||
       cancelMutation.isPending ||
+      markPaidMutation.isPending ||
       invoiceMutation.isPending,
     refresh,
     resetFilters,
@@ -490,5 +594,28 @@ export const useAdminAppointments = () => {
       const formatted = today.toISOString().slice(0, 10);
       setDateFilter(formatted);
     },
+    paymentAppointmentId,
+    openPaymentModal: (id: string) => setPaymentAppointmentId(id),
+    closePaymentModal: () => setPaymentAppointmentId(null),
+    selectedPayDetail,
+    paymentAmount,
+    paymentNote,
+    setPaymentNote,
+    handleClosePaymentModal: () => {
+      setPaymentNote("Pay at counter");
+      setPaymentAppointmentId(null);
+    },
+    handlePayment: () => {
+      if (!selectedPayDetail) return;
+      markPaidMutation.mutate({
+        appointmentId:
+          selectedPayDetail.id ?? selectedPayDetail.appointmentId ?? "",
+        invoiceId: selectedPayDetail.invoiceId,
+        amount: paymentAmount,
+        paymentMethod: "CASH",
+        note: paymentNote || "Pay at counter",
+      });
+    },
+    isMarkingPaid: markPaidMutation.isPending,
   };
 };

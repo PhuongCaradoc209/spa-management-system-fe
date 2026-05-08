@@ -32,6 +32,14 @@ const AdminHistoryTable: React.FC = () => {
     selectAppointment,
     clearSelection,
     selectedAppointment,
+    openPaymentModal,
+    selectedPayDetail,
+    paymentAmount,
+    paymentNote,
+    setPaymentNote,
+    handleClosePaymentModal,
+    handlePayment,
+    isMarkingPaid,
     detailLoading,
     detailError,
     advanceStatus,
@@ -204,6 +212,83 @@ const AdminHistoryTable: React.FC = () => {
           </div>
         </div>
       )}
+      {selectedPayDetail && (
+        <div className="rounded-3xl bg-white shadow-sm ring-1 ring-outline-variant/30 p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
+                Payment
+              </p>
+              <h3 className="text-lg font-headline font-semibold text-primary">
+                {formatPersonName(selectedPayDetail.customer)}
+              </h3>
+            </div>
+            <AppButton
+              variant="outline"
+              size="sm"
+              iconLeft="close"
+              className="bg-white"
+              onClick={handleClosePaymentModal}
+            >
+              Close
+            </AppButton>
+          </div>
+
+          <div className="mt-6 space-y-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
+                Payment ID
+              </p>
+              <p className="text-on-surface font-medium">
+                {formatServiceName(selectedPayDetail.services) ||
+                  selectedPayDetail.id ||
+                  selectedPayDetail.appointmentId ||
+                  "-"}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
+                  Amount
+                </p>
+                <p className="text-on-surface font-medium">
+                  {formatCurrency(paymentAmount, selectedPayDetail.currency)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
+                  Staff
+                </p>
+                <p className="text-on-surface font-medium">
+                  {formatPersonName(selectedPayDetail.staff)}
+                </p>
+              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest text-on-surface-variant/60 mb-2">
+                Note
+              </label>
+              <textarea
+                className="w-full min-h-24 rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-4 text-sm text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                value={paymentNote}
+                onChange={(event) => setPaymentNote(event.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-4">
+              <AppButton
+                variant="primary"
+                size="sm"
+                onClick={handlePayment}
+                disabled={
+                  !selectedPayDetail || isMarkingPaid || paymentAmount <= 0
+                }
+              >
+                {isMarkingPaid ? "Processing payment..." : "Payment"}
+              </AppButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modern Data Table */}
       <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-outline-variant/30">
@@ -263,6 +348,7 @@ const AdminHistoryTable: React.FC = () => {
                   onViewDetail={selectAppointment}
                   onAdvance={advanceStatus}
                   onCancel={cancelAppointment}
+                  onOpenPayment={openPaymentModal}
                 />
               ))}
           </tbody>
