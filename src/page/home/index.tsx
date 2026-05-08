@@ -1,294 +1,234 @@
-import { useMemo, useRef, useState } from "react";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import { PlusCircleIcon } from "@phosphor-icons/react";
-import { serviceService, type ServiceList } from "@/services/service.service";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { staffService } from "@/services/staff.service";
-import { appointmentService } from "@/services/appointment.service";
-import { invoiceService } from "@/services/invoice.service";
-import QuickStat from "../customer/booking/components/QuickStat";
-import SelectField from "../customer/booking/components/SelectField";
-import NavIconButton from "../customer/booking/components/NavIconButton";
-import ViewTabButton from "../customer/booking/components/ViewTabButton";
-import BookingModal from "../customer/booking/components/BookingModal";
-import UnpaidAlert from "../customer/booking/components/UnpaidAlert";
-import EventCard from "../customer/booking/components/EventCard";
+import React from "react";
+import AppButton from "@/components/common/AppButton";
 
-const BookingPage = () => {
-  const calendarRef = useRef<FullCalendar>(null);
-
-  const [activeView, setActiveView] = useState<string>("dayGridMonth");
-  const [calendarTitle, setCalendarTitle] = useState<string>("");
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-
-  const [selectedTherapist, setSelectedTherapist] = useState<string>("all");
-  const [selectedService, setSelectedService] = useState<string>("all");
-
-  // Query lấy danh sách kỹ thuật viên
-  const { data: therapistsList = [] } = useQuery({
-    queryKey: ["therapists"],
-    queryFn: () => staffService.listStaff(),
-    select: (data: any) => {
-      const staff = data?.staff || [];
-      return [{ value: "all", label: "All Specialists" }].concat(
-        staff.map((s: any) => ({
-          value: s.id,
-          label: s.firstName + " " + s.lastName,
-        })),
-      );
-    },
-  });
-
-  // Query lấy danh sách dịch vụ
-  const { data: servicesList = [] } = useQuery({
-    queryKey: ["listservices"],
-    queryFn: () => serviceService.listServices(),
-    select: (data: ServiceList[] | { services: ServiceList[] }) => {
-      const services = Array.isArray(data) ? data : data?.services || [];
-      const formattedOptions = services.map((service) => ({
-        value: service.id,
-        label: service.name,
-      }));
-      return [{ value: "all", label: "All Services" }, ...formattedOptions];
-    },
-  });
-
-  // Query lấy danh sách lịch hẹn
-  const { data: bookingList = [] } = useQuery({
-    queryKey: ["listBooking"],
-    queryFn: () => appointmentService.listAppointments(),
-    select: (data: any) => {
-      return Array.isArray(data) ? data : data?.appointments || [];
-    },
-  });
-
-  // Logic kiểm tra nợ (Chuyển từ Modal ra ngoài)
-  const { data: invoicesList = [], isLoading: isInvoicesLoading } = useQuery({
-    queryKey: ["invoices"],
-    queryFn: () => invoiceService.listInvoices(),
-    select: (res: any) =>
-      Array.isArray(res) ? res : res?.invoices || res?.data?.invoices || [],
-  });
-
-  const firstUnpaidInvoice = useMemo(() => {
-    return invoicesList.find((inv: any) => inv.paymentStatus === "UNPAID");
-  }, [invoicesList]);
-
-  const checkoutMutation = useMutation({
-    mutationFn: (invoiceId: string) =>
-      invoiceService.createCheckoutSession(invoiceId),
-    onSuccess: (data: any) => {
-      if (data?.url) window.location.href = data.url;
-    },
-  });
-
-  const calendarEvents = useMemo(() => {
-    const appointments = Array.isArray(bookingList) ? bookingList : [];
-
-    return appointments.reduce((acc: any[], appt: any) => {
-      if (selectedTherapist !== "all" && appt.staffId !== selectedTherapist) {
-        return acc;
-      }
-
-      if (selectedService !== "all") {
-        const hasService = appt.services?.some(
-          (s: any) => s.serviceId === selectedService,
-        );
-        if (!hasService) return acc;
-      }
-
-      const matchedStaff = therapistsList.find(
-        (t: any) => t.value === appt.staffId,
-      );
-      const therapistName = matchedStaff
-        ? matchedStaff.label
-        : "Unknown Specialist";
-
-      const serviceNames =
-        appt.services
-          ?.map((s: any) => s.service?.name)
-          .filter(Boolean)
-          .join(" + ") || "Appointment";
-
-      acc.push({
-        id: appt.id,
-        title: serviceNames,
-        start: appt.scheduledAt.substring(0, 19),
-        end: appt.endsAt ? appt.endsAt.substring(0, 19) : undefined,
-        extendedProps: {
-          therapist: therapistName,
-          status:
-            appt.status === "PENDING" ? "upcoming" : appt.status?.toLowerCase(),
-          notes: appt.notes,
-        },
-      });
-
-      return acc;
-    }, []);
-  }, [bookingList, therapistsList, selectedTherapist, selectedService]);
-
-  const { upcomingCount, completedCount, cancelledCount } = useMemo(() => {
-    return calendarEvents.reduce(
-      (stats, event) => {
-        const status = event.extendedProps.status;
-        if (status === "upcoming") {
-          stats.upcomingCount++;
-        } else if (status === "completed" || status === "paid") {
-          stats.completedCount++;
-        } else if (status === "cancelled") {
-          stats.cancelledCount++;
-        }
-        return stats;
-      },
-      { upcomingCount: 0, completedCount: 0, cancelledCount: 0 },
-    );
-  }, [calendarEvents]);
-
-  const handleViewChange = (viewName: string) => {
-    setActiveView(viewName);
-    const calendarApi = calendarRef.current?.getApi();
-    calendarApi?.changeView(viewName);
-  };
-
-  const handlePrev = () => calendarRef.current?.getApi().prev();
-  const handleNext = () => calendarRef.current?.getApi().next();
-  const handleToday = () => calendarRef.current?.getApi().today();
-
+const HomePage: React.FC = () => {
   return (
-    <div className="pt-32 pb-24 mx-24 lg:mx-32 flex flex-col lg:flex-row gap-6 text-black relative">
-      {/* Sidebar - Refine View & Quick Stats */}
-      <div className="flex flex-col gap-4 flex-1 rounded-xl p-8 bg-surface-container-low h-fit">
-        <div>
-          <h3 className="font-bold text-[#2d4b4e] mb-4 text-lg">Refine View</h3>
-          <div className="flex flex-col gap-4">
-            <SelectField
-              label="Therapist"
-              options={therapistsList}
-              value={selectedTherapist}
-              onChange={(e: any) =>
-                setSelectedTherapist(e.target ? e.target.value : e)
-              }
-            />
-            <SelectField
-              label="Service Type"
-              options={servicesList}
-              value={selectedService}
-              onChange={(e: any) =>
-                setSelectedService(e.target ? e.target.value : e)
-              }
-            />
-          </div>
+    <div className="pt-24 animate-in fade-in duration-700">
+      {/* Section 1: Hero Section */}
+      <section className="relative w-full h-[795px] min-h-[600px] flex items-center overflow-hidden">
+        <div className="absolute inset-0 z-0">
+          <img
+            alt="Serene Spa Garden"
+            className="w-full h-full object-cover"
+            src="https://i.pinimg.com/1200x/2a/09/39/2a0939817b0659d9252cb54f44757ea5.jpg"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/40 to-transparent"></div>
         </div>
-        <div>
-          <h3 className="font-bold text-[#2d4b4e] mb-4 text-lg">Quick Stats</h3>
-          <div className="flex flex-col gap-3">
-            <QuickStat
-              label="Upcoming"
-              count={upcomingCount}
-              bgColor="bg-[#e4eae5]"
-            />
-            <QuickStat
-              label="Completed"
-              count={completedCount}
-              bgColor="bg-[#ebf0f1]"
-            />
-            <QuickStat
-              label="Cancelled"
-              count={cancelledCount}
-              bgColor="bg-[#cfcfcf]"
-            />
-          </div>
-        </div>
-        <div className="mt-2">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="w-full bg-[#8c5e2d] hover:bg-[#784f25] transition-colors text-white py-3 px-4 rounded-full font-bold flex items-center justify-center gap-2 shadow-md"
-          >
-            <PlusCircleIcon size={24} />
-            Book Appointment
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content - Calendar */}
-      <div className="flex-4 border border-gray-100 p-6 rounded-2xl bg-white shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:justify-between items-start lg:items-center mb-6 gap-4">
-          <div className="flex flex-col lg:flex-row justify-between w-full lg:w-auto gap-4">
-            <div className="text-2xl font-bold text-teal-900 lg:w-64">
-              {calendarTitle}
-            </div>
-            <div className="flex items-center gap-3">
-              <NavIconButton onClick={handlePrev}>&lt;</NavIconButton>
-              <button
-                onClick={handleToday}
-                className="hover:text-teal-700 text-gray-500 transition tracking-wide font-bold text-sm"
+        <div className="relative z-10 max-w-7xl mx-auto px-8 w-full">
+          <div className="max-w-2xl text-left">
+            <h1 className="font-headline font-bold text-6xl md:text-7xl text-primary leading-[1.1] tracking-tight mb-8">
+              Welcome to <span className="text-tertiary">Serene Spa.</span>
+              <br />
+              Book Your Escape.
+            </h1>
+            <div className="flex items-center gap-6">
+              <AppButton
+                variant="primary"
+                size="xl"
+                className="ring-2 ring-tertiary/20"
               >
-                TODAY
-              </button>
-              <NavIconButton onClick={handleNext}>&gt;</NavIconButton>
+                Book Your Visit
+              </AppButton>
+              <div className="flex items-center gap-3 text-primary/70 font-medium cursor-pointer hover:opacity-80 transition-opacity">
+                <span className="material-symbols-outlined">play_circle</span>
+                <span>Take a Tour</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 2: Featured Services */}
+      <section className="max-w-7xl mx-auto px-8 py-32">
+        <div className="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
+          <div className="max-w-xl">
+            <span className="font-label text-xs font-bold tracking-[0.2em] text-tertiary mb-4 block uppercase leading-none">
+              OUR EXPERTISE
+            </span>
+            <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary leading-tight">
+              Curated Rituals for Inner Peace
+            </h2>
+          </div>
+          <p className="font-body text-lg text-primary/60 max-w-sm">
+            Every treatment is an intentional journey through the elements of
+            nature and soul.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Service 1 */}
+          <div className="group relative bg-surface-container-low rounded-[2.5rem] p-4 pb-12 transition-all duration-700 hover:bg-primary-container/20 overflow-hidden">
+            <div className="aspect-[4/5] rounded-[2rem] overflow-hidden mb-8">
+              <img
+                alt="Botanical Facial"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBsfBXLi6ZWp6ks2Q2jN9Kkku4QL9jnMJXFJqAkyGNKXxCaAplrh7W2Bk3IyeLBRoz7rOtLEBOyaKZL-ar8MLlYnkT6oMnb8daFm-mar1zKAIGGThm_lPLqXQrG8MpOea4nCz9yx98D1rj-tH_USzqGynmvwsDN76RGutsNJC63-urOtJmS52QM6EiIcN7EZX9sL_Eka-onPcInGKm7VGYMKQPG1HukbdCF3J2jbpc2KUeODE7XuFs34P-DbNOuA12Xb1v0cZsn7AM"
+              />
+            </div>
+            <div className="px-6">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="font-headline text-2xl font-bold text-primary">
+                  Botanical Essence
+                </h3>
+                <span className="text-tertiary font-bold">$140</span>
+              </div>
+              <p className="text-primary/60 leading-relaxed mb-6">
+                A deep hydration treatment using organic cucumber and local
+                honey infusions.
+              </p>
+              <span className="inline-flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all cursor-pointer">
+                Details{" "}
+                <span className="material-symbols-outlined text-sm">
+                  arrow_forward
+                </span>
+              </span>
             </div>
           </div>
 
-          <div className="flex bg-gray-100 p-1 rounded-full">
-            <ViewTabButton
-              label="MONTH"
-              isActive={activeView === "dayGridMonth"}
-              onClick={() => handleViewChange("dayGridMonth")}
-            />
-            <ViewTabButton
-              label="WEEK"
-              isActive={activeView === "timeGridWeek"}
-              onClick={() => handleViewChange("timeGridWeek")}
-            />
-            <ViewTabButton
-              label="DAY"
-              isActive={activeView === "timeGridDay"}
-              onClick={() => handleViewChange("timeGridDay")}
-            />
+          {/* Service 2 */}
+          <div className="group relative bg-surface-container-low rounded-[2.5rem] p-4 pb-12 mt-12 md:mt-0 transition-all duration-700 hover:bg-secondary-container/20 overflow-hidden">
+            <div className="aspect-[4/5] rounded-[2rem] overflow-hidden mb-8">
+              <img
+                alt="River Stone Therapy"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfSSKJPd9cbJ5iFRf-uzBtbNl206Q96eLRtK9VXeQtWvzLbMEhY-mSWpgC8xIFDM8B7GUecMYgF3EPH8inWMeTuEC8R7-QG1g_nk8umQYtJmANnJAfFF6eEvG6p6-A5eX-IRM20EkIjlDgzdATaWjYxPRUf_HM1WXA5BRm2MdrJCdPczrTnUOgq-FQKZ13EjJ_CBzy2_MpWu-fmG45O8UfArrEZjl4j5uhnfYEmD7UOcC31tE9FlkwALp2W_xel-w5p-YUza7UAcw"
+              />
+            </div>
+            <div className="px-6">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="font-headline text-2xl font-bold text-primary">
+                  River Balance
+                </h3>
+                <span className="text-tertiary font-bold">$185</span>
+              </div>
+              <p className="text-primary/60 leading-relaxed mb-6">
+                Heated volcanic stones are used to release muscle tension and
+                align your energy flow.
+              </p>
+              <span className="inline-flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all cursor-pointer">
+                Details{" "}
+                <span className="material-symbols-outlined text-sm">
+                  arrow_forward
+                </span>
+              </span>
+            </div>
+          </div>
+
+          {/* Service 3 */}
+          <div className="group relative bg-surface-container-low rounded-[2.5rem] p-4 pb-12 transition-all duration-700 hover:bg-primary-container/20 overflow-hidden">
+            <div className="aspect-[4/5] rounded-[2rem] overflow-hidden mb-8">
+              <img
+                alt="Foot Reflexology"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9-zWBOQVXLAIcygkppFUTToSYzq4z2jXqJ6NK1lNnuiFZiHay8Av_XHeU0z1AQ9-SL1OZcHhFZPYt7U5URiz40ZIelbDV8K_tiieUoOFUzV41dAtWRgEE8rLnOUqhHeTv3zuCKqkonmFUA_mQ9DIHJ6tujrjwYSvJUw7K5rfwGB3_y_8YXatM_lzwI8pV1ES_b5idYJWfBu1GUGJi8ETUIjAHLYgKEY97vwjzPVdf08RSKcs3c8UCVKOEM1WVuT3LmfEV0o5mPe0"
+              />
+            </div>
+            <div className="px-6">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="font-headline text-2xl font-bold text-primary">
+                  Earth Connection
+                </h3>
+                <span className="text-tertiary font-bold">$110</span>
+              </div>
+              <p className="text-primary/60 leading-relaxed mb-6">
+                Traditional reflexology techniques focused on grounding your
+                body and mind.
+              </p>
+              <span className="inline-flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all cursor-pointer">
+                Details{" "}
+                <span className="material-symbols-outlined text-sm">
+                  arrow_forward
+                </span>
+              </span>
+            </div>
           </div>
         </div>
+      </section>
 
-        <FullCalendar
-          ref={calendarRef}
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
-          headerToolbar={false}
-          eventBackgroundColor="transparent"
-          eventBorderColor="transparent"
-          height="auto"
-          datesSet={(dateInfo) => setCalendarTitle(dateInfo.view.title)}
-          events={calendarEvents}
-          eventContent={(eventInfo) => <EventCard eventInfo={eventInfo} />}
-        />
-      </div>
-
-      {/* Modal đặt lịch (Đã dọn dẹp logic hóa đơn) */}
-      <BookingModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        servicesList={servicesList}
-      />
-
-      {/* Unpaid Alert Modal (Chặn người dùng khi có nợ) */}
-      {!isInvoicesLoading && firstUnpaidInvoice && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
-          <div className="bg-white w-full max-w-lg rounded-2xl p-6 shadow-xl relative animate-fade-in-up">
-            <UnpaidAlert
-              invoice={firstUnpaidInvoice}
-              isPaying={checkoutMutation.isPending}
-              onPay={() => checkoutMutation.mutate(firstUnpaidInvoice.id)}
-              onClose={() => {
-                // Tùy chọn: Có thể đóng modal hoặc chuyển hướng người dùng ra trang khác
-              }}
-            />
+      {/* Section 3: Testimonials */}
+      <section className="bg-surface-container-low py-32 rounded-t-[5rem]">
+        <div className="max-w-7xl mx-auto px-8">
+          <div className="text-center mb-24">
+            <span className="font-label text-xs font-bold tracking-[0.2em] text-tertiary mb-4 block uppercase leading-none">
+              TESTIMONIALS
+            </span>
+            <h2 className="font-headline text-4xl md:text-5xl font-bold text-primary">
+              Voices of Tranquility
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+            {/* Testimonial 1 */}
+            <div className="bg-surface-container-lowest p-12 rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(62,102,88,0.05)] flex flex-col justify-between">
+              <p className="font-body text-xl italic text-primary/80 leading-relaxed mb-10">
+                &quot;The moment I stepped in, the air felt different. Every
+                detail, from the wooden pillars to the sound of flowing water,
+                is designed for pure peace.&quot;
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-primary-container/30 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-primary">
+                    person
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-headline font-bold text-primary">
+                    Elena Vance
+                  </h4>
+                  <span className="text-primary/40 text-sm">Loyal Member</span>
+                </div>
+              </div>
+            </div>
+            {/* Testimonial 2 */}
+            <div className="bg-surface-container-lowest p-12 rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(62,102,88,0.05)] flex flex-col justify-between">
+              <p className="font-body text-xl italic text-primary/80 leading-relaxed mb-10">
+                &quot;The River Balance massage was life-changing. I&apos;ve
+                never felt more grounded and revitalized. It is truly a
+                sanctuary in the city.&quot;
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-secondary-container/30 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-primary">
+                    person
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-headline font-bold text-primary">
+                    Marcus Thorne
+                  </h4>
+                  <span className="text-primary/40 text-sm">
+                    First-time Guest
+                  </span>
+                </div>
+              </div>
+            </div>
+            {/* Testimonial 3 */}
+            <div className="bg-surface-container-lowest p-12 rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(62,102,88,0.05)] flex flex-col justify-between">
+              <p className="font-body text-xl italic text-primary/80 leading-relaxed mb-10">
+                &quot;A masterclass in luxury. The botanical facial left my skin
+                glowing for days. Can&apos;t wait for my next escape to the
+                pavilion.&quot;
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-tertiary-container/30 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-primary">
+                    person
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-headline font-bold text-primary">
+                    Sarah Jenkins
+                  </h4>
+                  <span className="text-primary/40 text-sm">
+                    Regular Client
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      )}
+      </section>
     </div>
   );
 };
 
-export default BookingPage;
+export default HomePage;

@@ -17,7 +17,6 @@ const routes: RouteObject[] = [
       {
         path: NAV_PATH.HOME,
         element: <HomePage />,
-        index: true,
       },
       {
         path: NAV_PATH.LOGIN,
@@ -44,7 +43,6 @@ const routes: RouteObject[] = [
       {
         path: "",
         element: <AdminPage />,
-        index: true,
       },
       {
         path: "operations",
