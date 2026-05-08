@@ -21,6 +21,7 @@ type AdminHistoryRowProps = {
     current?: AppointmentStatusType | string | null,
   ) => void;
   onCancel: (id: string) => void;
+  onOpenPayment: (id: string) => void;
   disableActions?: boolean;
 };
 
@@ -29,6 +30,7 @@ const AdminHistoryRow: React.FC<AdminHistoryRowProps> = ({
   onViewDetail,
   onAdvance,
   onCancel,
+  onOpenPayment,
   disableActions,
 }) => {
   const appointmentId = appointment.id ?? appointment.appointmentId;
@@ -52,6 +54,9 @@ const AdminHistoryRow: React.FC<AdminHistoryRowProps> = ({
           ? "done_all"
           : "check_circle";
 
+  const isUnpaid = appointment.paymentStatus === "UNPAID";
+  const isCompleted = statusValue === AppointmentStatus.Completed;
+  const canPay = isCompleted && isUnpaid;
   if (!appointmentId) {
     return null;
   }
@@ -135,6 +140,15 @@ const AdminHistoryRow: React.FC<AdminHistoryRowProps> = ({
             disabled={!canCancel || disableActions}
             aria-label="Cancel appointment"
             onClick={() => onCancel(appointmentId)}
+          />
+          <AppButton
+            variant="ghost"
+            size="sm"
+            iconLeft="receipt_long"
+            className={"p-2 min-w-0 "}
+            disabled={disableActions || !canPay}
+            aria-label="Process payment"
+            onClick={() => onOpenPayment(appointmentId)}
           />
         </div>
       </td>

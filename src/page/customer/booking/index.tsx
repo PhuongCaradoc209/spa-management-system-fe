@@ -22,7 +22,6 @@ const BookingPage = () => {
   const [calendarTitle, setCalendarTitle] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
-  // State quản lý Filter
   const [selectedTherapist, setSelectedTherapist] = useState<string>("all");
   const [selectedService, setSelectedService] = useState<string>("all");
 
@@ -62,25 +61,22 @@ const BookingPage = () => {
   });
 
   const calendarEvents = useMemo(() => {
-    // 1. Lấy mảng appointments gốc
-    let appointments = Array.isArray(bookingList) ? bookingList : [];
+    const appointments = Array.isArray(bookingList) ? bookingList : [];
 
-    // 2. Lọc theo Therapist (nếu khác "all")
-    if (selectedTherapist !== "all") {
-      appointments = appointments.filter(
-        (appt: any) => appt.staffId === selectedTherapist,
-      );
-    }
+    return appointments.reduce((acc: any[], appt: any) => {
+      // 1. Kiểm tra Filter Therapist
+      if (selectedTherapist !== "all" && appt.staffId !== selectedTherapist) {
+        return acc;
+      }
 
-    // 3. Lọc theo Service (nếu khác "all")
-    if (selectedService !== "all") {
-      appointments = appointments.filter((appt: any) => {
-        return appt.services?.some((s: any) => s.serviceId === selectedService);
-      });
-    }
+      if (selectedService !== "all") {
+        const hasService = appt.services?.some(
+          (s: any) => s.serviceId === selectedService,
+        );
+        if (!hasService) return acc;
+      }
 
-    // 4. Map ra định dạng chuẩn của FullCalendar
-    return appointments.map((appt: any) => {
+      // 3. Format dữ liệu nếu thỏa mãn điều kiện lọc
       const matchedStaff = therapistsList.find(
         (t: any) => t.value === appt.staffId,
       );
@@ -94,10 +90,9 @@ const BookingPage = () => {
           .filter(Boolean)
           .join(" + ") || "Appointment";
 
-      return {
+      acc.push({
         id: appt.id,
         title: serviceNames,
-        // Cắt bỏ chữ Z để tránh lỗi lệch múi giờ trên FullCalendar
         start: appt.scheduledAt.substring(0, 19),
         end: appt.endsAt ? appt.endsAt.substring(0, 19) : undefined,
         extendedProps: {
@@ -106,20 +101,28 @@ const BookingPage = () => {
             appt.status === "PENDING" ? "upcoming" : appt.status?.toLowerCase(),
           notes: appt.notes,
         },
-      };
-    });
+      });
+
+      return acc;
+    }, []);
   }, [bookingList, therapistsList, selectedTherapist, selectedService]);
 
-  // Tính toán Quick Stats động dựa trên danh sách sự kiện ĐÃ LỌC
-  const upcomingCount = calendarEvents.filter(
-    (e) => e.extendedProps.status === "upcoming",
-  ).length;
-
-  const completedCount = calendarEvents.filter(
-    (e) =>
-      e.extendedProps.status === "completed" ||
-      e.extendedProps.status === "paid", // Bạn có thể điều chỉnh status tùy theo API của bạn
-  ).length;
+  const { upcomingCount, completedCount, cancelledCount } = useMemo(() => {
+    return calendarEvents.reduce(
+      (stats, event) => {
+        const status = event.extendedProps.status;
+        if (status === "upcoming") {
+          stats.upcomingCount++;
+        } else if (status === "completed" || status === "paid") {
+          stats.completedCount++;
+        } else if (status === "cancelled") {
+          stats.cancelledCount++;
+        }
+        return stats;
+      },
+      { upcomingCount: 0, completedCount: 0, cancelledCount: 0 },
+    );
+  }, [calendarEvents]);
 
   const handleViewChange = (viewName: string) => {
     setActiveView(viewName);
@@ -133,7 +136,7 @@ const BookingPage = () => {
 
   return (
     <div className="pt-32 pb-24 mx-24 lg:mx-32 flex flex-col lg:flex-row gap-6 text-black ">
-      <div className="flex flex-col gap-4 flex-1 rounded-xl p-8 bg-surface-container-low ">
+      <div className="flex flex-col gap-4 flex-1 rounded-xl p-8 bg-surface-container-low h-fit">
         <div>
           <h3 className="font-bold text-[#2d4b4e] mb-4 text-lg">Refine View</h3>
           <div className="flex flex-col gap-4">
@@ -168,6 +171,11 @@ const BookingPage = () => {
               label="Completed"
               count={completedCount}
               bgColor="bg-[#ebf0f1]"
+            />
+            <QuickStat
+              label="Cancelled"
+              count={cancelledCount}
+              bgColor="bg-[#cfcfcf]"
             />
           </div>
         </div>

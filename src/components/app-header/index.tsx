@@ -52,15 +52,14 @@ const AppHeader: React.FC = () => {
           </NavLink>
         </div>
 
-        {token ? (
-          <AppButton variant="outline" size="md" onClick={handleLogout}>
-            Logout
-          </AppButton>
-        ) : (
-          <AppButton variant="primary" size="md" onClick={handleLogin}>
-            Login
-          </AppButton>
-        )}
+        <AppButton
+          variant={token ? "outline" : "primary"}
+          size="sm"
+          iconLeft={token ? "logout" : "login"}
+          onClick={token ? handleLogout : handleLogin}
+        >
+          {token ? "Logout" : "Login"}
+        </AppButton>
       </nav>
     </header>
   );
