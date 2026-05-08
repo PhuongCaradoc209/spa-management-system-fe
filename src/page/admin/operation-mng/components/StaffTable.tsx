@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { userService } from "@/services/user.service";
+import { serviceService } from "@/services/service.service";
+import { staffSpecializationService } from "@/services/staff-specialization.service";
 import { StatusPill } from "./StatusPill";
 import AppButton from "@/components/common/AppButton";
 import AppModal from "@/components/common/AppModal";
@@ -65,6 +67,19 @@ export const StaffTable: React.FC = () => {
     isActive: true,
   });
 
+  const [isAssignServicesOpen, setIsAssignServicesOpen] = useState(false);
+  const [assignServicesUserId, setAssignServicesUserId] = useState<string | null>(null);
+
+  const { data: servicesData } = useQuery({
+    queryKey: ["admin", "services", "all"],
+    queryFn: () => serviceService.listServices({ limit: 1000 }),
+    staleTime: 60_000,
+  });
+
+  const allServices = useMemo(() => {
+    return Array.isArray(servicesData) ? servicesData : (servicesData as any)?.services || (servicesData as any)?.items || [];
+  }, [servicesData]);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["admin", "users"],
     queryFn: () => userService.listUsers(),
@@ -72,7 +87,7 @@ export const StaffTable: React.FC = () => {
   });
 
   const createUserMutation = useMutation({
-    mutationFn: userService.createUser,
+    mutationFn: (input: { payload: any }) => userService.createUser(input.payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       setIsUpsertOpen(false);
@@ -96,9 +111,53 @@ export const StaffTable: React.FC = () => {
     },
   });
 
+  const { data: staffSpecsData, isLoading: isLoadingSpecs } = useQuery({
+    queryKey: ["staff", "specializations", assignServicesUserId],
+    queryFn: () => staffSpecializationService.listSpecializations(assignServicesUserId!),
+    enabled: !!assignServicesUserId,
+  });
+
+  const assignedServiceIds = useMemo(() => {
+    if (!staffSpecsData) return [];
+    const specs = Array.isArray(staffSpecsData) ? staffSpecsData : (staffSpecsData as any).specializations;
+    return Array.isArray(specs) ? specs.map((item: any) => item.serviceId) : [];
+  }, [staffSpecsData]);
+
+  const assignServiceMutation = useMutation({
+    mutationFn: async (serviceId: string) => {
+      if (!assignServicesUserId) return;
+      return staffSpecializationService.addSpecialization(assignServicesUserId, { serviceId });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["staff", "specializations", assignServicesUserId] });
+    },
+    onError: (error: unknown) => {
+      const apiMessage = isAxiosError<ApiErrorResponse>(error)
+        ? error.response?.data?.message
+        : undefined;
+      alert(apiMessage || "Failed to assign service.");
+    }
+  });
+
+  const removeServiceMutation = useMutation({
+    mutationFn: async (serviceId: string) => {
+      if (!assignServicesUserId) return;
+      return staffSpecializationService.removeSpecialization(assignServicesUserId, serviceId);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["staff", "specializations", assignServicesUserId] });
+    },
+    onError: (error: unknown) => {
+      const apiMessage = isAxiosError<ApiErrorResponse>(error)
+        ? error.response?.data?.message
+        : undefined;
+      alert(apiMessage || "Failed to remove service.");
+    }
+  });
+
   const fetchUserDetailMutation = useMutation({
     mutationFn: (userId: string) => userService.getUserById(userId),
-    onSuccess: (payload: unknown) => {
+    onSuccess: (payload: unknown, userId: string) => {
       const root = asRecord(payload);
       const userRaw = (asRecord(root?.user) ?? root) as Record<
         string,
@@ -135,10 +194,12 @@ export const StaffTable: React.FC = () => {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: (input: {
+    mutationFn: async (input: {
       userId: string;
       payload: { role: "ADMIN" | "STAFF"; isActive: boolean };
-    }) => userService.updateUser(input.userId, input.payload),
+    }) => {
+      return userService.updateUser(input.userId, input.payload);
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       setIsUpsertOpen(false);
@@ -172,6 +233,7 @@ export const StaffTable: React.FC = () => {
       extractUsers(data)
         .map((raw) => ({
           id: String(raw.id ?? raw.userId ?? raw._id ?? ""),
+          staffId: String(asRecord(raw.staff)?.id ?? ""),
           name: buildName(raw),
           email: String(raw.email ?? ""),
           role: String(raw.role ?? "").toUpperCase(),
@@ -278,14 +340,16 @@ export const StaffTable: React.FC = () => {
                   }
 
                   createUserMutation.mutate({
-                    email: form.email,
-                    password: form.password,
-                    role: form.role,
-                    firstName: form.firstName || undefined,
-                    lastName: form.lastName || undefined,
-                    phone: form.phone || undefined,
-                    bio: form.bio || undefined,
-                    isAvailable: form.isAvailable,
+                    payload: {
+                      email: form.email,
+                      password: form.password,
+                      role: form.role,
+                      firstName: form.firstName || undefined,
+                      lastName: form.lastName || undefined,
+                      phone: form.phone || undefined,
+                      bio: form.bio || undefined,
+                      isAvailable: form.isAvailable,
+                    },
                   });
                   return;
                 }
@@ -545,6 +609,23 @@ export const StaffTable: React.FC = () => {
                     <button
                       type="button"
                       className="inline-flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+                      aria-label="Assign Services"
+                      onClick={() => {
+                        if (!row.staffId) {
+                          alert("This user does not have a valid staff profile.");
+                          return;
+                        }
+                        setAssignServicesUserId(row.staffId);
+                        setIsAssignServicesOpen(true);
+                      }}
+                    >
+                      <span className="material-symbols-outlined text-[20px]">
+                        medical_services
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
                       aria-label="Edit"
                       onClick={() => {
                         setMode("edit");
@@ -577,6 +658,97 @@ export const StaffTable: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      <AppModal
+        open={isAssignServicesOpen}
+        title="Assign Services"
+        description="Select services to assign to this staff member."
+        onClose={() => {
+          setIsAssignServicesOpen(false);
+          setAssignServicesUserId(null);
+        }}
+        footer={
+          <AppButton
+            variant="ghost"
+            size="md"
+            type="button"
+            onClick={() => {
+              setIsAssignServicesOpen(false);
+              setAssignServicesUserId(null);
+            }}
+          >
+            Done
+          </AppButton>
+        }
+      >
+        {isLoadingSpecs ? (
+          <div className="py-12 text-center text-sm text-on-surface-variant/60">
+            Loading specializations...
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="block text-[10px] font-label tracking-[0.15em] uppercase text-on-surface-variant/60">
+                Assigned Services
+              </label>
+              <div className="max-h-72 overflow-y-auto rounded-2xl border border-outline-variant/30 bg-white p-2 space-y-2">
+                {allServices
+                  .filter((svc: any) => assignedServiceIds.includes(svc.id))
+                  .map((svc: any) => (
+                  <div key={svc.id} className="flex items-center justify-between p-2 hover:bg-surface-container-low rounded-lg transition-colors border border-outline-variant/10">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-on-surface">{svc.name}</span>
+                      {svc.price && <span className="text-[12px] text-on-surface-variant">${svc.price}</span>}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeServiceMutation.mutate(svc.id)}
+                      disabled={removeServiceMutation.isPending}
+                      className="text-error hover:bg-error/10 p-1.5 rounded-full transition-colors flex items-center justify-center disabled:opacity-50"
+                      title="Remove service"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">remove</span>
+                    </button>
+                  </div>
+                ))}
+                {allServices.filter((svc: any) => assignedServiceIds.includes(svc.id)).length === 0 && (
+                  <div className="text-sm text-on-surface-variant/60 py-4 text-center">No assigned services.</div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-[10px] font-label tracking-[0.15em] uppercase text-on-surface-variant/60">
+                Available Services
+              </label>
+              <div className="max-h-72 overflow-y-auto rounded-2xl border border-outline-variant/30 bg-white p-2 space-y-2">
+                {allServices
+                  .filter((svc: any) => !assignedServiceIds.includes(svc.id))
+                  .map((svc: any) => (
+                  <div key={svc.id} className="flex items-center justify-between p-2 hover:bg-surface-container-low rounded-lg transition-colors border border-outline-variant/10">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-on-surface">{svc.name}</span>
+                      {svc.price && <span className="text-[12px] text-on-surface-variant">${svc.price}</span>}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => assignServiceMutation.mutate(svc.id)}
+                      disabled={assignServiceMutation.isPending}
+                      className="text-primary hover:bg-primary/10 p-1.5 rounded-full transition-colors flex items-center justify-center disabled:opacity-50"
+                      title="Add service"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">add</span>
+                    </button>
+                  </div>
+                ))}
+                {allServices.filter((svc: any) => !assignedServiceIds.includes(svc.id)).length === 0 && (
+                  <div className="text-sm text-on-surface-variant/60 py-4 text-center">All services assigned.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </AppModal>
     </section>
   );
 };

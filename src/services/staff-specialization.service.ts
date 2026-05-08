@@ -32,4 +32,23 @@ export const staffSpecializationService = {
   ): Promise<void> => {
     return apiClient.delete(`/staff/${staffId}/specializations/${serviceId}`);
   },
+
+  updateSpecializations: async (
+    staffId: string,
+    payload: { serviceIds: string[] },
+  ): Promise<void> => {
+    // 1. Fetch current specializations
+    const currentSpecs = await staffSpecializationService.listSpecializations(staffId);
+    const currentIds = Array.isArray(currentSpecs) ? currentSpecs.map((s) => s.serviceId) : [];
+    
+    // 2. Calculate diff
+    const toAdd = payload.serviceIds.filter((id) => !currentIds.includes(id));
+    const toRemove = currentIds.filter((id) => !payload.serviceIds.includes(id));
+    
+    // 3. Execute concurrently
+    await Promise.all([
+      ...toAdd.map((serviceId) => staffSpecializationService.addSpecialization(staffId, { serviceId })),
+      ...toRemove.map((serviceId) => staffSpecializationService.removeSpecialization(staffId, serviceId))
+    ]);
+  },
 };
