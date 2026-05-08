@@ -217,7 +217,7 @@ const AdminHistoryTable: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
-                Thanh toán
+                Payment
               </p>
               <h3 className="text-lg font-headline font-semibold text-primary">
                 {formatPersonName(selectedPayDetail.customer)}
@@ -237,7 +237,7 @@ const AdminHistoryTable: React.FC = () => {
           <div className="mt-6 space-y-4">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
-                Tên đơn hàng
+                Payment ID
               </p>
               <p className="text-on-surface font-medium">
                 {formatServiceName(selectedPayDetail.services) ||
@@ -249,7 +249,7 @@ const AdminHistoryTable: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
-                  Giá trị
+                  Amount
                 </p>
                 <p className="text-on-surface font-medium">
                   {formatCurrency(paymentAmount, selectedPayDetail.currency)}
@@ -257,7 +257,7 @@ const AdminHistoryTable: React.FC = () => {
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">
-                  Nhân viên
+                  Staff
                 </p>
                 <p className="text-on-surface font-medium">
                   {formatPersonName(selectedPayDetail.staff)}
@@ -283,7 +283,7 @@ const AdminHistoryTable: React.FC = () => {
                   !selectedPayDetail || isMarkingPaid || paymentAmount <= 0
                 }
               >
-                {isMarkingPaid ? "Đang thanh toán..." : "Payment"}
+                {isMarkingPaid ? "Processing payment..." : "Payment"}
               </AppButton>
             </div>
           </div>
