@@ -1,10 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { serviceService } from "@/services/service.service";
 import { appointmentService } from "@/services/appointment.service";
-import { invoiceService } from "@/services/invoice.service";
-import UnpaidAlert from "./UnpaidAlert";
 import BookingForm from "./BookingForm";
 
 interface BookingModalProps {
@@ -30,28 +28,10 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleChange = (field: string, value: any) =>
     setFormData((prev) => ({ ...prev, [field]: value }));
+    
   const handleResetForm = () => setFormData(initialFormState);
 
-  // APIs
-  const { data: invoicesList = [], isLoading: isInvoicesLoading } = useQuery({
-    queryKey: ["invoices"],
-    queryFn: () => invoiceService.listInvoices(),
-    select: (res: any) =>
-      Array.isArray(res) ? res : res?.invoices || res?.data?.invoices || [],
-  });
-
-  const firstUnpaidInvoice = useMemo(() => {
-    return invoicesList.find((inv: any) => inv.paymentStatus === "UNPAID");
-  }, [invoicesList]);
-
-  const checkoutMutation = useMutation({
-    mutationFn: (invoiceId: string) =>
-      invoiceService.createCheckoutSession(invoiceId),
-    onSuccess: (data: any) => {
-      if (data?.url) window.location.href = data.url;
-    },
-  });
-
+  // Mutation tạo lịch hẹn
   const bookingMutation = useMutation({
     mutationKey: ["createBooking"],
     mutationFn: (payload: any) =>
@@ -63,12 +43,13 @@ const BookingModal: React.FC<BookingModalProps> = ({
       alert("Booking successful!");
       onClose();
       handleResetForm();
-      queryClient.invalidateQueries({
-        queryKey: ["listBooking", "therapistsList"],
-      });
+      queryClient.invalidateQueries({ queryKey: ["listBooking"] });
+      queryClient.invalidateQueries({ queryKey: ["therapists"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
   });
 
+  // Query lấy danh sách nhân viên theo dịch vụ đã chọn
   const { data: staffOptions = [], isLoading: isStaffLoading } = useQuery({
     queryKey: ["staffs", formData.serviceIds[0]],
     queryFn: () => serviceService.listStaffServices(formData.serviceIds[0]),
@@ -93,35 +74,22 @@ const BookingModal: React.FC<BookingModalProps> = ({
           <X size={24} />
         </button>
 
-        {isInvoicesLoading ? (
-          <div className="text-center py-10 text-gray-500 font-medium">
-            Checking information...
-          </div>
-        ) : firstUnpaidInvoice ? (
-          <UnpaidAlert
-            invoice={firstUnpaidInvoice}
-            isPaying={checkoutMutation.isPending}
-            onPay={() => checkoutMutation.mutate(firstUnpaidInvoice.id)}
-            onClose={onClose}
-          />
-        ) : (
-          <BookingForm
-            formData={formData}
-            onChange={handleChange}
-            onSubmit={(e) => {
-              e.preventDefault();
-              bookingMutation.mutate(formData);
-            }}
-            servicesList={servicesList}
-            staffOptions={staffOptions}
-            isStaffLoading={isStaffLoading}
-            isBooking={bookingMutation.isPending}
-            onCancel={() => {
-              onClose();
-              handleResetForm();
-            }}
-          />
-        )}
+        <BookingForm
+          formData={formData}
+          onChange={handleChange}
+          onSubmit={(e) => {
+            e.preventDefault();
+            bookingMutation.mutate(formData);
+          }}
+          servicesList={servicesList}
+          staffOptions={staffOptions}
+          isStaffLoading={isStaffLoading}
+          isBooking={bookingMutation.isPending}
+          onCancel={() => {
+            onClose();
+            handleResetForm();
+          }}
+        />
       </div>
     </div>
   );
