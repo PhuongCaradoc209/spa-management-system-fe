@@ -44,8 +44,13 @@ const BookingModal: React.FC<BookingModalProps> = ({
       onClose();
       handleResetForm();
       queryClient.invalidateQueries({ queryKey: ["listBooking"] });
-      queryClient.invalidateQueries({ queryKey: ["therapists"] });
+      queryClient.invalidateQueries({ queryKey: ["therapistsList"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    },
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.message || "Failed to create booking.";
+      alert(message);
     },
   });
 

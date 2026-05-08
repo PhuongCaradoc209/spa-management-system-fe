@@ -26,7 +26,7 @@ const BookingPage = () => {
   const [selectedService, setSelectedService] = useState<string>("all");
 
   const { data: therapistsList = [] } = useQuery({
-    queryKey: ["therapists"],
+    queryKey: ["therapistsList"],
     queryFn: () => staffService.listStaff(),
     select: (data: any) => {
       const staff = data?.staff || [];

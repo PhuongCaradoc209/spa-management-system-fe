@@ -50,12 +50,15 @@ const TherapistPage = () => {
     queryKey: ["therapistsList"],
     queryFn: async () => {
       const response: any = await staffService.listStaff();
-      return response?.staff || [];
+      const list = Array.isArray(response) ? response : response?.staff;
+      return Array.isArray(list) ? list : [];
     },
   });
 
+  const safeStaffList = Array.isArray(staffList) ? staffList : [];
+
   const countQueries = useQueries({
-    queries: staffList.map((staff: any) => ({
+    queries: safeStaffList.map((staff: any) => ({
       queryKey: ["appointmentCount", staff.id],
       queryFn: () => appointmentService.getAppointmentsByStaff(staff.id),
       enabled: !!staff.id,
@@ -64,7 +67,7 @@ const TherapistPage = () => {
   });
 
   const therapistsList = useMemo(() => {
-    return staffList.map((staff: any, index: number) => {
+    return safeStaffList.map((staff: any, index: number) => {
       const countQuery = countQueries[index];
       const count = (countQuery?.data as any)?.total || 0;
       return {
@@ -73,7 +76,7 @@ const TherapistPage = () => {
         isCountLoading: countQuery?.isLoading,
       };
     });
-  }, [staffList, countQueries]);
+  }, [safeStaffList, countQueries]);
 
   const filtered = useMemo(() => {
     return therapistsList

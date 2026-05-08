@@ -1,7 +1,17 @@
 import React from "react";
 import AppButton from "@/components/common/AppButton";
+import { useNavigate } from "react-router-dom";
 
 const HomePage: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleBooking = () => {
+    navigate("/booking");
+  };
+  const handleTherapist = () => {
+    navigate("/therapists");
+  };
+
   return (
     <div className="pt-24 animate-in fade-in duration-700">
       {/* Section 1: Hero Section */}
@@ -26,10 +36,14 @@ const HomePage: React.FC = () => {
                 variant="primary"
                 size="xl"
                 className="ring-2 ring-tertiary/20"
+                onClick={handleBooking}
               >
                 Book Your Visit
               </AppButton>
-              <div className="flex items-center gap-3 text-primary/70 font-medium cursor-pointer hover:opacity-80 transition-opacity">
+              <div
+                onClick={handleBooking}
+                className="flex items-center gap-3 text-primary/70 font-medium cursor-pointer hover:opacity-80 transition-opacity"
+              >
                 <span className="material-symbols-outlined">play_circle</span>
                 <span>Take a Tour</span>
               </div>
@@ -76,7 +90,10 @@ const HomePage: React.FC = () => {
                 A deep hydration treatment using organic cucumber and local
                 honey infusions.
               </p>
-              <span className="inline-flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all cursor-pointer">
+              <span
+                onClick={handleTherapist}
+                className="inline-flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all cursor-pointer"
+              >
                 Details{" "}
                 <span className="material-symbols-outlined text-sm">
                   arrow_forward
@@ -105,7 +122,10 @@ const HomePage: React.FC = () => {
                 Heated volcanic stones are used to release muscle tension and
                 align your energy flow.
               </p>
-              <span className="inline-flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all cursor-pointer">
+              <span
+                onClick={handleTherapist}
+                className="inline-flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all cursor-pointer"
+              >
                 Details{" "}
                 <span className="material-symbols-outlined text-sm">
                   arrow_forward
@@ -134,7 +154,10 @@ const HomePage: React.FC = () => {
                 Traditional reflexology techniques focused on grounding your
                 body and mind.
               </p>
-              <span className="inline-flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all cursor-pointer">
+              <span
+                onClick={handleTherapist}
+                className="inline-flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all cursor-pointer"
+              >
                 Details{" "}
                 <span className="material-symbols-outlined text-sm">
                   arrow_forward
