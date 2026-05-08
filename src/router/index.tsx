@@ -8,6 +8,7 @@ import { NAV_PATH } from "./paths";
 import BookingPage from "@/page/customer/booking";
 import TherapistPage from "@/page/customer/therapist";
 import AdminOperationManagementPage from "@/page/admin/operation-mng";
+import RegisterPage from "@/page/auth/register";
 
 const routes: RouteObject[] = [
   {
@@ -21,6 +22,10 @@ const routes: RouteObject[] = [
       {
         path: NAV_PATH.LOGIN,
         element: <LoginPage />,
+      },
+      {
+        path: NAV_PATH.REGISTER,
+        element: <RegisterPage />,
       },
       {
         path: NAV_PATH.BOOKING,

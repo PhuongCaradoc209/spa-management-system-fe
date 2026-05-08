@@ -1,6 +1,7 @@
 export const NAV_PATH = {
   HOME: "/",
   LOGIN: "/login",
+  REGISTER: "/register",
   DASHBOARD: "/dashboard",
   SCHEDULE: "/schedule",
   ADMIN: "/admin",
