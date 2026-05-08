@@ -69,12 +69,12 @@ const UnpaidAlert: React.FC<UnpaidAlertProps> = ({
         >
           {isPaying ? "Generating payment link..." : "Pay Now"}
         </button>
-        <button
+        {/* <button
           onClick={onClose}
           className="w-full px-5 py-3 rounded-lg font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition"
         >
           Maybe Later
-        </button>
+        </button> */}
       </div>
     </div>
   );
