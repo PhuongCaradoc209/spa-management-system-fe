@@ -82,7 +82,12 @@ const LoginPage: React.FC = () => {
             >
               Login
             </AppButton>
-            <AppButton variant="ghost" className="flex-1" size="sm">
+            <AppButton
+              variant="ghost"
+              className="flex-1"
+              size="sm"
+              onClick={() => navigate(NAV_PATH.REGISTER)}
+            >
               Register
             </AppButton>
           </div>
